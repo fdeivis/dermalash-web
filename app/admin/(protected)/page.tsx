@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+// Los contadores deben reflejar siempre el estado actual: las acciones de
+// crear/editar/publicar/eliminar solo revalidan su propio listado
+// (/admin/servicios, /admin/promociones, /admin/novedades), no el dashboard.
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   const [services, promotions, posts] = await Promise.all([
     prisma.service.count(),
