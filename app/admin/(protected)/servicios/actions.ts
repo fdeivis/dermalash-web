@@ -40,6 +40,7 @@ export async function createService(formData: FormData) {
 
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
+  revalidatePath("/");
   redirect("/admin/servicios");
 }
 
@@ -50,6 +51,7 @@ export async function updateService(id: string, formData: FormData) {
 
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
+  revalidatePath("/");
   redirect("/admin/servicios");
 }
 
@@ -58,6 +60,7 @@ export async function deleteService(id: string) {
   await prisma.service.delete({ where: { id } });
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
+  revalidatePath("/");
 }
 
 export async function setServiceStatus(id: string, status: "DRAFT" | "PUBLISHED") {
@@ -65,6 +68,7 @@ export async function setServiceStatus(id: string, status: "DRAFT" | "PUBLISHED"
   await prisma.service.update({ where: { id }, data: { status } });
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
+  revalidatePath("/");
 }
 
 export async function moveService(id: string, direction: "up" | "down") {
@@ -85,4 +89,5 @@ export async function moveService(id: string, direction: "up" | "down") {
 
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
+  revalidatePath("/");
 }

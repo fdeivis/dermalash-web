@@ -51,6 +51,7 @@ export async function createPromotion(formData: FormData) {
 
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
+  revalidatePath("/");
   redirect("/admin/promociones");
 }
 
@@ -65,6 +66,7 @@ export async function updatePromotion(id: string, formData: FormData) {
 
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
+  revalidatePath("/");
   redirect("/admin/promociones");
 }
 
@@ -73,6 +75,7 @@ export async function deletePromotion(id: string) {
   await prisma.promotion.delete({ where: { id } });
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
+  revalidatePath("/");
 }
 
 export async function setPromotionStatus(id: string, status: "DRAFT" | "PUBLISHED") {
@@ -80,6 +83,7 @@ export async function setPromotionStatus(id: string, status: "DRAFT" | "PUBLISHE
   await prisma.promotion.update({ where: { id }, data: { status } });
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
+  revalidatePath("/");
 }
 
 export async function movePromotion(id: string, direction: "up" | "down") {
@@ -100,4 +104,5 @@ export async function movePromotion(id: string, direction: "up" | "down") {
 
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
+  revalidatePath("/");
 }
