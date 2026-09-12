@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tokens de marca. Placeholder hasta contar con la identidad definitiva
+ * de Dermalash (logo, paleta, tipografía) — ver lib/branding.ts.
+ * Reemplazar únicamente estos valores no debería requerir tocar componentes.
+ */
+:root {
+  --brand-bg: #faf7f2;
+  --brand-surface: #ffffff;
+  --brand-ink: #2b2521;
+  --brand-muted: #7a7167;
+  --brand-accent: #b3654a;
+  --brand-accent-ink: #ffffff;
+  --brand-border: #e8e1d8;
+  --brand-radius: 0.75rem;
+}
+
+body {
+  background-color: var(--brand-bg);
+  color: var(--brand-ink);
+}

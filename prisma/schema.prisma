@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// Usuario del panel de administración.
+// MVP1: un único tipo de acceso (sin roles). En MVP2 se agrega `role`
+// (Socio / Encargado / Esteticista) sobre esta misma tabla.
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique
+  description     String
+  durationMinutes Int?
+  price           Decimal       @db.Decimal(10, 2)
+  priceFrom       Boolean       @default(false)
+  images          String[]      @default([])
+  status          ContentStatus @default(DRAFT)
+  order           Int           @default(0)
+  promotions      Promotion[]   @relation("PromotionServices")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status, order])
+}
+
+model Promotion {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  description String
+  conditions  String?
+  promoPrice  Decimal?      @db.Decimal(10, 2)
+  startDate   DateTime
+  endDate     DateTime
+  images      String[]      @default([])
+  status      ContentStatus @default(DRAFT)
+  order       Int           @default(0)
+  services    Service[]     @relation("PromotionServices")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, order])
+}
+
+model Post {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  excerpt     String
+  content     String
+  coverImage  String?
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, publishedAt])
+}
