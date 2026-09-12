@@ -107,7 +107,7 @@ export function PromotionForm({
       <div>
         <label className="block text-sm font-medium">Imágenes</label>
         <div className="mt-1">
-          <ImageUrlList name="images" initial={promotion?.images} />
+          <ImageUrlList name="images" initial={promotion?.images} folder="promociones" />
         </div>
       </div>
 

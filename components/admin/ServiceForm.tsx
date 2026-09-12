@@ -65,7 +65,7 @@ export function ServiceForm({
       <div>
         <label className="block text-sm font-medium">Imágenes</label>
         <div className="mt-1">
-          <ImageUrlList name="images" initial={service?.images} />
+          <ImageUrlList name="images" initial={service?.images} folder="servicios" />
         </div>
       </div>
 

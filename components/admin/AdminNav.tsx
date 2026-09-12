@@ -22,6 +22,14 @@ export function AdminNav() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <nav className="flex items-center gap-6 text-sm">
           <span className="font-display text-lg">Admin</span>
+          <Link
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-muted hover:text-brand-ink"
+          >
+            ↗ Ver sitio
+          </Link>
           {LINKS.map((link) => {
             const active =
               link.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(link.href);

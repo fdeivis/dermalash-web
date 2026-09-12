@@ -1,10 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { uploadImageAction } from "@/lib/actions/upload";
 
-export function ImageUrlList({ name, initial = [] }: { name: string; initial?: string[] }) {
+export function ImageUrlList({
+  name,
+  initial = [],
+  folder,
+}: {
+  name: string;
+  initial?: string[];
+  folder: string;
+}) {
   const [urls, setUrls] = useState<string[]>(initial.length > 0 ? initial : [""]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    const formData = new FormData();
+    formData.set("file", file);
+    const result = await uploadImageAction(folder, formData);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    if (result.url) {
+      setUrls((prev) => [...prev.filter((u) => u.trim().length > 0), result.url as string]);
+    }
+  }
 
   return (
     <div className="space-y-2">
@@ -32,12 +65,26 @@ export function ImageUrlList({ name, initial = [] }: { name: string; initial?: s
           </Button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={() => setUrls([...urls, ""])}>
-        Agregar imagen
-      </Button>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => setUrls([...urls, ""])}>
+          Agregar URL
+        </Button>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-brand border border-brand-border px-3 py-1.5 text-sm hover:bg-brand-bg">
+          {uploading ? "Subiendo..." : "Subir imagen"}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={handleFileChange}
+          />
+        </label>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
       <p className="text-xs text-brand-muted">
-        Pegá la URL de la imagen (por ahora subida manual; próximamente subida directa de
-        archivos).
+        Subí una imagen desde tu computadora o pegá la URL de una imagen ya publicada.
       </p>
     </div>
   );

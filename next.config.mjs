@@ -7,6 +7,12 @@ const nextConfig = {
     // el proyecto Supabase definitivo esté configurado.
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
+  experimental: {
+    serverActions: {
+      // Permite subir imágenes desde el panel (límite por defecto: 1mb).
+      bodySizeLimit: "10mb",
+    },
+  },
 };
 
 export default nextConfig;

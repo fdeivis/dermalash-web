@@ -1,5 +1,6 @@
 import type { Post } from "@prisma/client";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/components/admin/ImageUploadField";
 
 export function PostForm({
   post,
@@ -43,14 +44,10 @@ export function PostForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium">Imagen de portada (URL, opcional)</label>
-        <input
-          type="url"
-          name="coverImage"
-          defaultValue={post?.coverImage ?? undefined}
-          placeholder="https://..."
-          className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
-        />
+        <label className="block text-sm font-medium">Imagen de portada (opcional)</label>
+        <div className="mt-1">
+          <ImageUploadField name="coverImage" initial={post?.coverImage} folder="novedades" />
+        </div>
       </div>
 
       <Button type="submit">{post ? "Guardar cambios" : "Crear novedad"}</Button>
