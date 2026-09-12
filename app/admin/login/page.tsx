@@ -2,12 +2,11 @@
 
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { branding } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/admin";
 
@@ -21,21 +20,31 @@ function LoginForm() {
     setLoading(true);
     setError(null);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    setLoading(false);
+      if (result?.error) {
+        setError("Email o contraseña incorrectos.");
+        setLoading(false);
+        return;
+      }
 
-    if (result?.error) {
-      setError("Email o contraseña incorrectos.");
-      return;
+      // Navegación completa (no client-side): evita que el router cache de
+      // Next.js reutilice una respuesta de /admin cacheada de antes de
+      // loguearse (proxy.ts la había redirigido a /admin/login), lo que
+      // hacía que el primer intento de login pareciera no hacer nada.
+      window.location.href = callbackUrl;
+    } catch {
+      // Sin este catch, un error de red pasajero (frecuente en el primer
+      // request luego de que el servidor estuvo inactivo) dejaba el botón
+      // trabado en "Ingresando..." para siempre, sin ningún mensaje.
+      setError("No se pudo conectar. Probá de nuevo en unos segundos.");
+      setLoading(false);
     }
-
-    router.push(callbackUrl);
-    router.refresh();
   }
 
   return (
