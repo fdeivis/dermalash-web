@@ -7,7 +7,10 @@ import { createPromotion } from "../actions";
 export const dynamic = "force-dynamic";
 
 export default async function NuevaPromocionPage() {
-  const allServices = await prisma.service.findMany({ orderBy: { order: "asc" } });
+  const allServices = await prisma.service.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: { order: "asc" },
+  });
 
   return (
     <div>
