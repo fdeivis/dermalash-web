@@ -63,6 +63,14 @@ export async function uploadPrivateFile(file: File, folder: string): Promise<str
 }
 
 /**
+ * Borra un archivo privado del bucket (usado al eliminar un cliente).
+ */
+export async function deletePrivateFile(path: string): Promise<void> {
+  const supabase = getSupabaseStorageClient();
+  await supabase.storage.from(PRIVATE_STORAGE_BUCKET).remove([path]);
+}
+
+/**
  * Genera una URL firmada de corta duración para leer un archivo privado.
  * Debe invocarse siempre desde el servidor, después de requireAdminSession().
  */

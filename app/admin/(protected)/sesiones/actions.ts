@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
 import { resolveSessionPricing } from "@/lib/pricing";
+import { logAction } from "@/lib/audit";
 
 const sessionSchema = z.object({
   clientId: z.string().min(1, "Seleccioná un cliente"),
@@ -34,8 +35,8 @@ export async function createClientSession(formData: FormData) {
   // la sesión, aunque el usuario la haya cambiado a una fecha pasada.
   const resolved = await resolveSessionPricing(data.serviceIds, data.sessionDate);
 
-  await prisma.$transaction(async (tx) => {
-    const clientSession = await tx.clientSession.create({
+  const clientSession = await prisma.$transaction(async (tx) => {
+    const created = await tx.clientSession.create({
       data: {
         clientId: data.clientId,
         attendedByUserId: data.attendedByUserId,
@@ -58,15 +59,38 @@ export async function createClientSession(formData: FormData) {
     // misma sesión.
     await tx.income.create({
       data: {
-        sessionId: clientSession.id,
+        sessionId: created.id,
         amount: data.totalAmount,
         paymentMethod: data.paymentMethod,
         occurredAt: data.sessionDate,
       },
     });
+
+    return created;
   });
+  await logAction(
+    session,
+    "sesion.crear",
+    "ClientSession",
+    clientSession.id,
+    `S/ ${data.totalAmount}`
+  );
 
   revalidatePath("/admin/sesiones");
   revalidatePath("/admin/clientes");
   redirect("/admin/sesiones");
+}
+
+export async function deleteClientSession(id: string) {
+  const session = await requireAdminSession();
+
+  await prisma.$transaction([
+    prisma.income.deleteMany({ where: { sessionId: id } }),
+    prisma.clientSessionService.deleteMany({ where: { sessionId: id } }),
+    prisma.clientSession.delete({ where: { id } }),
+  ]);
+  await logAction(session, "sesion.eliminar", "ClientSession", id);
+
+  revalidatePath("/admin/sesiones");
+  revalidatePath("/admin/clientes");
 }

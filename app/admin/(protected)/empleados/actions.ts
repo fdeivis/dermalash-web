@@ -6,11 +6,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
+import { logAction } from "@/lib/audit";
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, "El nombre es obligatorio"),
   lastName: z.string().min(1, "El apellido es obligatorio"),
-  role: z.enum(["ENCARGADO", "ESTETICISTA"]),
+  role: z.enum(["SOCIO", "ENCARGADO", "ESTETICISTA"]),
   address: z.string().optional(),
   birthDate: z.coerce.date().optional(),
   documentId: z.string().optional(),
@@ -37,7 +38,7 @@ function parseEmployeeFormData(formData: FormData) {
 }
 
 export async function createEmployee(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const data = createEmployeeSchema.parse({
     ...parseEmployeeFormData(formData),
     email: formData.get("email"),
@@ -68,6 +69,13 @@ export async function createEmployee(formData: FormData) {
       },
     });
   });
+  await logAction(
+    session,
+    "empleado.crear",
+    "Employee",
+    employee.id,
+    `${data.firstName} ${data.lastName}`
+  );
 
   revalidatePath("/admin/empleados");
   redirect(`/admin/empleados/${employee.id}`);
@@ -78,7 +86,7 @@ const updateEmployeeSchema = employeeSchema.extend({
 });
 
 export async function updateEmployee(id: string, formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const data = updateEmployeeSchema.parse({
     ...parseEmployeeFormData(formData),
     email: formData.get("email"),
@@ -117,6 +125,7 @@ export async function updateEmployee(id: string, formData: FormData) {
 
     await tx.adminUser.update({ where: { id: employee.adminUserId }, data: adminUserData });
   });
+  await logAction(session, "empleado.editar", "Employee", id, `${data.firstName} ${data.lastName}`);
 
   revalidatePath("/admin/empleados");
   revalidatePath(`/admin/empleados/${id}`);
@@ -124,15 +133,50 @@ export async function updateEmployee(id: string, formData: FormData) {
 }
 
 export async function setEmployeeActive(id: string, active: boolean) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const employee = await prisma.employee.findUniqueOrThrow({ where: { id } });
 
   await prisma.$transaction([
     prisma.employee.update({ where: { id }, data: { active } }),
     prisma.adminUser.update({ where: { id: employee.adminUserId }, data: { active } }),
   ]);
+  await logAction(
+    session,
+    active ? "empleado.activar" : "empleado.desactivar",
+    "Employee",
+    id,
+    `${employee.firstName} ${employee.lastName}`
+  );
 
   revalidatePath("/admin/empleados");
+}
+
+export async function deleteEmployee(id: string) {
+  const session = await requireAdminSession();
+  const employee = await prisma.employee.findUniqueOrThrow({ where: { id } });
+
+  const sessionCount = await prisma.clientSession.count({
+    where: { attendedByUserId: employee.adminUserId },
+  });
+  if (sessionCount > 0) {
+    redirect("/admin/empleados?error=tiene-sesiones");
+  }
+
+  await prisma.$transaction([
+    prisma.employeeSalaryPeriod.deleteMany({ where: { employeeId: id } }),
+    prisma.employee.delete({ where: { id } }),
+    prisma.adminUser.delete({ where: { id: employee.adminUserId } }),
+  ]);
+  await logAction(
+    session,
+    "empleado.eliminar",
+    "Employee",
+    id,
+    `${employee.firstName} ${employee.lastName}`
+  );
+
+  revalidatePath("/admin/empleados");
+  redirect("/admin/empleados");
 }
 
 const salaryPeriodSchema = z.object({
@@ -143,7 +187,7 @@ const salaryPeriodSchema = z.object({
 });
 
 export async function addSalaryPeriod(employeeId: string, formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const data = salaryPeriodSchema.parse({
     amount: formData.get("amount"),
     validFrom: formData.get("validFrom"),
@@ -152,6 +196,13 @@ export async function addSalaryPeriod(employeeId: string, formData: FormData) {
   });
 
   await prisma.employeeSalaryPeriod.create({ data: { employeeId, ...data } });
+  await logAction(
+    session,
+    "empleado.sueldo.agregar",
+    "Employee",
+    employeeId,
+    `S/ ${data.amount}`
+  );
 
   revalidatePath(`/admin/empleados/${employeeId}`);
 }

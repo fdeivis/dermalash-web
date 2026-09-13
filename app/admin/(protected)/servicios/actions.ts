@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { requireAdminSession } from "@/lib/auth";
+import { logAction } from "@/lib/audit";
 
 const serviceSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -29,7 +30,7 @@ function parseFormData(formData: FormData) {
 }
 
 export async function createService(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const data = parseFormData(formData);
   const slug = await uniqueSlug(
     data.name,
@@ -37,7 +38,10 @@ export async function createService(formData: FormData) {
   );
   const last = await prisma.service.findFirst({ orderBy: { order: "desc" } });
 
-  await prisma.service.create({ data: { ...data, slug, order: (last?.order ?? 0) + 1 } });
+  const service = await prisma.service.create({
+    data: { ...data, slug, order: (last?.order ?? 0) + 1 },
+  });
+  await logAction(session, "servicio.crear", "Service", service.id, service.name);
 
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
@@ -46,9 +50,10 @@ export async function createService(formData: FormData) {
 }
 
 export async function updateService(id: string, formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const data = parseFormData(formData);
   await prisma.service.update({ where: { id }, data });
+  await logAction(session, "servicio.editar", "Service", id, data.name);
 
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
@@ -57,9 +62,11 @@ export async function updateService(id: string, formData: FormData) {
 }
 
 export async function deleteService(id: string) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
+  let deletedName: string | undefined;
   try {
-    await prisma.service.delete({ where: { id } });
+    const deleted = await prisma.service.delete({ where: { id } });
+    deletedName = deleted.name;
   } catch (error) {
     // El servicio tiene sesiones registradas (ON DELETE RESTRICT): no se
     // borra el historial. Se informa en vez de romper la página.
@@ -68,6 +75,8 @@ export async function deleteService(id: string) {
     }
     throw error;
   }
+  await logAction(session, "servicio.eliminar", "Service", id, deletedName);
+
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
   revalidatePath("/");
@@ -75,8 +84,15 @@ export async function deleteService(id: string) {
 }
 
 export async function setServiceStatus(id: string, status: "DRAFT" | "PUBLISHED") {
-  await requireAdminSession();
-  await prisma.service.update({ where: { id }, data: { status } });
+  const session = await requireAdminSession();
+  const service = await prisma.service.update({ where: { id }, data: { status } });
+  await logAction(
+    session,
+    status === "PUBLISHED" ? "servicio.publicar" : "servicio.despublicar",
+    "Service",
+    id,
+    service.name
+  );
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
   revalidatePath("/");

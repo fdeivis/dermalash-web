@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { addSalaryPeriod, setEmployeeActive } from "../actions";
 
 const ROLE_LABEL: Record<string, string> = {
+  SOCIO: "Socio",
   ENCARGADO: "Encargado",
   ESTETICISTA: "Esteticista",
 };

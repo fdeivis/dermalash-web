@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
+import { deleteClientSession } from "./actions";
 
 const PAYMENT_LABEL: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -38,6 +40,7 @@ export default async function AdminSesionesPage() {
               <th className="px-4 py-3">Profesional</th>
               <th className="px-4 py-3">Medio de pago</th>
               <th className="px-4 py-3">Total</th>
+              <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -60,11 +63,23 @@ export default async function AdminSesionesPage() {
                 <td className="px-4 py-3">{session.attendedBy.name}</td>
                 <td className="px-4 py-3">{PAYMENT_LABEL[session.paymentMethod]}</td>
                 <td className="px-4 py-3">{formatPrice(session.totalAmount.toString())}</td>
+                <td className="px-4 py-3">
+                  <form action={deleteClientSession.bind(null, session.id)}>
+                    <ConfirmSubmitButton
+                      type="submit"
+                      variant="danger"
+                      size="sm"
+                      confirmMessage="¿Eliminar esta sesión? También se elimina el ingreso asociado. No se puede deshacer."
+                    >
+                      Eliminar
+                    </ConfirmSubmitButton>
+                  </form>
+                </td>
               </tr>
             ))}
             {sessions.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-brand-muted">
+                <td colSpan={7} className="px-4 py-8 text-center text-brand-muted">
                   Todavía no hay sesiones registradas.
                 </td>
               </tr>

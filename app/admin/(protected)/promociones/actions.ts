@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { requireAdminSession } from "@/lib/auth";
+import { logAction } from "@/lib/audit";
 
 const promotionSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -32,7 +33,7 @@ function parseFormData(formData: FormData) {
 }
 
 export async function createPromotion(formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const { serviceIds, ...data } = parseFormData(formData);
   const slug = await uniqueSlug(
     data.name,
@@ -40,7 +41,7 @@ export async function createPromotion(formData: FormData) {
   );
   const last = await prisma.promotion.findFirst({ orderBy: { order: "desc" } });
 
-  await prisma.promotion.create({
+  const promotion = await prisma.promotion.create({
     data: {
       ...data,
       slug,
@@ -48,6 +49,7 @@ export async function createPromotion(formData: FormData) {
       services: { connect: serviceIds.map((id) => ({ id })) },
     },
   });
+  await logAction(session, "promocion.crear", "Promotion", promotion.id, promotion.name);
 
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
@@ -56,13 +58,14 @@ export async function createPromotion(formData: FormData) {
 }
 
 export async function updatePromotion(id: string, formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const { serviceIds, ...data } = parseFormData(formData);
 
   await prisma.promotion.update({
     where: { id },
     data: { ...data, services: { set: serviceIds.map((sid) => ({ id: sid })) } },
   });
+  await logAction(session, "promocion.editar", "Promotion", id, data.name);
 
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
@@ -71,16 +74,24 @@ export async function updatePromotion(id: string, formData: FormData) {
 }
 
 export async function deletePromotion(id: string) {
-  await requireAdminSession();
-  await prisma.promotion.delete({ where: { id } });
+  const session = await requireAdminSession();
+  const deleted = await prisma.promotion.delete({ where: { id } });
+  await logAction(session, "promocion.eliminar", "Promotion", id, deleted.name);
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
   revalidatePath("/");
 }
 
 export async function setPromotionStatus(id: string, status: "DRAFT" | "PUBLISHED") {
-  await requireAdminSession();
-  await prisma.promotion.update({ where: { id }, data: { status } });
+  const session = await requireAdminSession();
+  const promotion = await prisma.promotion.update({ where: { id }, data: { status } });
+  await logAction(
+    session,
+    status === "PUBLISHED" ? "promocion.publicar" : "promocion.despublicar",
+    "Promotion",
+    id,
+    promotion.name
+  );
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
   revalidatePath("/");

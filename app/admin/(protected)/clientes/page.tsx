@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
+import { deleteClient } from "./actions";
 
 export default async function AdminClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; error?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, error } = await searchParams;
 
   const clients = await prisma.client.findMany({
     where: q
@@ -32,6 +34,12 @@ export default async function AdminClientesPage({
           <Button>Nuevo cliente</Button>
         </Link>
       </div>
+
+      {error === "tiene-sesiones" && (
+        <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          No se puede eliminar: este cliente ya tiene sesiones registradas.
+        </p>
+      )}
 
       <form className="mt-4 flex gap-2" action="/admin/clientes">
         <input
@@ -68,18 +76,32 @@ export default async function AdminClientesPage({
                 <td className="px-4 py-3">{client.phone ?? "—"}</td>
                 <td className="px-4 py-3">{client.documentId ?? "—"}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/admin/clientes/${client.id}`}>
-                    <Button variant="outline" size="sm">
-                      Ver ficha
-                    </Button>
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/admin/clientes/${client.id}`}>
+                      <Button variant="outline" size="sm">
+                        Ver ficha
+                      </Button>
+                    </Link>
+                    <form action={deleteClient.bind(null, client.id)}>
+                      <ConfirmSubmitButton
+                        type="submit"
+                        variant="danger"
+                        size="sm"
+                        confirmMessage={`¿Eliminar a "${client.firstName} ${client.lastName}"? Esta acción no se puede deshacer.`}
+                      >
+                        Eliminar
+                      </ConfirmSubmitButton>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}
             {clients.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-brand-muted">
-                  {q ? "No se encontraron clientes con esa búsqueda." : "Todavía no hay clientes cargados."}
+                  {q
+                    ? "No se encontraron clientes con esa búsqueda."
+                    : "Todavía no hay clientes cargados."}
                 </td>
               </tr>
             )}

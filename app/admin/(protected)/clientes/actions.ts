@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
-import { uploadPrivateFile } from "@/lib/supabase";
+import { uploadPrivateFile, deletePrivateFile } from "@/lib/supabase";
+import { logAction } from "@/lib/audit";
 
 const clientSchema = z.object({
   firstName: z.string().min(1, "El nombre es obligatorio"),
@@ -45,20 +46,44 @@ export async function createClient(formData: FormData) {
   const client = await prisma.client.create({
     data: { ...data, createdByUserId: session.user.id },
   });
+  await logAction(session, "cliente.crear", "Client", client.id, `${data.firstName} ${data.lastName}`);
 
   revalidatePath("/admin/clientes");
   redirect(`/admin/clientes/${client.id}`);
 }
 
 export async function updateClient(id: string, formData: FormData) {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const data = parseFormData(formData);
 
   await prisma.client.update({ where: { id }, data });
+  await logAction(session, "cliente.editar", "Client", id, `${data.firstName} ${data.lastName}`);
 
   revalidatePath("/admin/clientes");
   revalidatePath(`/admin/clientes/${id}`);
   redirect(`/admin/clientes/${id}`);
+}
+
+export async function deleteClient(id: string) {
+  const session = await requireAdminSession();
+
+  const sessionCount = await prisma.clientSession.count({ where: { clientId: id } });
+  if (sessionCount > 0) {
+    redirect("/admin/clientes?error=tiene-sesiones");
+  }
+
+  const client = await prisma.client.findUniqueOrThrow({ where: { id } });
+  const attachments = await prisma.clientAttachment.findMany({ where: { clientId: id } });
+  await Promise.all(attachments.map((a) => deletePrivateFile(a.storagePath).catch(() => {})));
+
+  await prisma.$transaction([
+    prisma.clientAttachment.deleteMany({ where: { clientId: id } }),
+    prisma.client.delete({ where: { id } }),
+  ]);
+  await logAction(session, "cliente.eliminar", "Client", id, `${client.firstName} ${client.lastName}`);
+
+  revalidatePath("/admin/clientes");
+  redirect("/admin/clientes");
 }
 
 const attachmentKindSchema = z.enum(["PHOTO", "DOCUMENT", "HEALTH_RECORD"]);
@@ -86,6 +111,7 @@ export async function addClientAttachment(
         uploadedByUserId: session.user.id,
       },
     });
+    await logAction(session, "cliente.adjunto.subir", "Client", clientId, parsedKind);
     revalidatePath(`/admin/clientes/${clientId}`);
     return {};
   } catch (error) {

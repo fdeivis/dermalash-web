@@ -2,14 +2,21 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { setEmployeeActive } from "./actions";
+import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
+import { deleteEmployee, setEmployeeActive } from "./actions";
 
 const ROLE_LABEL: Record<string, string> = {
+  SOCIO: "Socio",
   ENCARGADO: "Encargado",
   ESTETICISTA: "Esteticista",
 };
 
-export default async function AdminEmpleadosPage() {
+export default async function AdminEmpleadosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const employees = await prisma.employee.findMany({
     include: { adminUser: true },
     orderBy: { createdAt: "desc" },
@@ -23,6 +30,13 @@ export default async function AdminEmpleadosPage() {
           <Button>Nuevo empleado</Button>
         </Link>
       </div>
+
+      {error === "tiene-sesiones" && (
+        <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          No se puede eliminar: este empleado ya atendió sesiones registradas. Desactivalo en su
+          lugar si ya no trabaja acá.
+        </p>
+      )}
 
       <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
         <table className="w-full text-left text-sm">
@@ -59,6 +73,16 @@ export default async function AdminEmpleadosPage() {
                       <Button type="submit" variant="outline" size="sm">
                         {employee.active ? "Desactivar" : "Activar"}
                       </Button>
+                    </form>
+                    <form action={deleteEmployee.bind(null, employee.id)}>
+                      <ConfirmSubmitButton
+                        type="submit"
+                        variant="danger"
+                        size="sm"
+                        confirmMessage={`¿Eliminar a "${employee.firstName} ${employee.lastName}"? Esta acción no se puede deshacer.`}
+                      >
+                        Eliminar
+                      </ConfirmSubmitButton>
                     </form>
                   </div>
                 </td>

@@ -11,6 +11,24 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// Registro de auditoría de acciones administrativas. userName/userRole se
+// guardan como texto plano (no una relación) a propósito: un usuario puede
+// borrarse más adelante y el historial de qué hizo debe seguir legible.
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  userName   String
+  userRole   Role?
+  action     String
+  entityType String
+  entityId   String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
 enum ContentStatus {
   DRAFT
   PUBLISHED

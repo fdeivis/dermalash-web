@@ -47,6 +47,7 @@ export function EmployeeForm({
         >
           <option value="ESTETICISTA">Esteticista</option>
           <option value="ENCARGADO">Encargado</option>
+          <option value="SOCIO">Socio</option>
         </select>
       </div>
 

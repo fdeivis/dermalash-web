@@ -49,6 +49,17 @@ export function AdminNav() {
               </Link>
             );
           })}
+          {session?.user?.role === "SOCIO" && (
+            <Link
+              href="/admin/logs"
+              className={cn(
+                "text-brand-muted hover:text-brand-ink",
+                pathname?.startsWith("/admin/logs") && "font-medium text-brand-ink"
+              )}
+            >
+              Logs
+            </Link>
+          )}
         </nav>
         <div className="flex items-center gap-3 text-sm text-brand-muted">
           {session?.user?.name && <span>{session.user.name}</span>}

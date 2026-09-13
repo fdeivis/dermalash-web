@@ -28,6 +28,12 @@ export const authOptions: AuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
 
+        await prisma.auditLog
+          .create({
+            data: { userId: user.id, userName: user.name, userRole: user.role, action: "login", entityType: "AdminUser", entityId: user.id },
+          })
+          .catch((error) => console.error("No se pudo registrar el log de auditoría:", error));
+
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
@@ -59,5 +65,15 @@ export const authOptions: AuthOptions = {
 export async function requireAdminSession() {
   const session = await getServerSession(authOptions);
   if (!session) throw new Error("No autorizado");
+  return session;
+}
+
+/**
+ * Primer punto real de restricción por rol (el resto del panel todavía no
+ * las aplica a propósito): la vista de logs y su purga son solo para Socio.
+ */
+export async function requireSocio() {
+  const session = await requireAdminSession();
+  if (session.user.role !== "SOCIO") throw new Error("Solo el Socio puede acceder a esta sección");
   return session;
 }
