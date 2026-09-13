@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -57,10 +58,20 @@ export async function updateService(id: string, formData: FormData) {
 
 export async function deleteService(id: string) {
   await requireAdminSession();
-  await prisma.service.delete({ where: { id } });
+  try {
+    await prisma.service.delete({ where: { id } });
+  } catch (error) {
+    // El servicio tiene sesiones registradas (ON DELETE RESTRICT): no se
+    // borra el historial. Se informa en vez de romper la página.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      redirect("/admin/servicios?error=tiene-sesiones");
+    }
+    throw error;
+  }
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
   revalidatePath("/");
+  redirect("/admin/servicios");
 }
 
 export async function setServiceStatus(id: string, status: "DRAFT" | "PUBLISHED") {

@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteService, moveService, setServiceStatus } from "./actions";
 
-export default async function AdminServiciosPage() {
+export default async function AdminServiciosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const services = await prisma.service.findMany({ orderBy: { order: "asc" } });
 
   return (
@@ -17,6 +22,13 @@ export default async function AdminServiciosPage() {
           <Button>Nuevo servicio</Button>
         </Link>
       </div>
+
+      {error === "tiene-sesiones" && (
+        <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          No se puede eliminar: este servicio ya tiene sesiones registradas. Despublicalo en su
+          lugar si no querés seguir ofreciéndolo.
+        </p>
+      )}
 
       <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
         <table className="w-full text-left text-sm">
