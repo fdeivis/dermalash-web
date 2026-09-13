@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAgendaManager } from "@/lib/auth";
-import { getSchedulableProfessionals, minutesToTime, professionalLabel } from "@/lib/scheduling";
+import { getSchedulableProfessionals, minutesToTime12, professionalLabel } from "@/lib/scheduling";
+import { generateTimeOptions } from "@/lib/time";
+
+const TIME_OPTIONS = generateTimeOptions();
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { createSchedule, deleteSchedule, createTimeOff, deleteTimeOff } from "./actions";
@@ -21,7 +24,7 @@ const DAYS = [
 
 function hoursLabel(startMinute: number | null, endMinute: number | null) {
   if (startMinute === null || endMinute === null) return "todo el día";
-  return `${minutesToTime(startMinute)} - ${minutesToTime(endMinute)}`;
+  return `${minutesToTime12(startMinute)} - ${minutesToTime12(endMinute)}`;
 }
 
 // Feriados/ausencias se navegan mes a mes en vez de listar todo junto: así no
@@ -98,7 +101,7 @@ export default async function HorariosPage({
               {rows.map((s) => (
                 <li key={s.id} className="flex items-center justify-between">
                   <span>
-                    {DAYS[s.dayOfWeek]}: {minutesToTime(s.startMinute)} - {minutesToTime(s.endMinute)}
+                    {DAYS[s.dayOfWeek]}: {minutesToTime12(s.startMinute)} - {minutesToTime12(s.endMinute)}
                   </span>
                   <form action={deleteSchedule.bind(null, s.id)}>
                     <ConfirmSubmitButton
@@ -138,23 +141,31 @@ export default async function HorariosPage({
               </div>
               <div>
                 <label className="block text-xs font-medium">Desde</label>
-                <input
-                  type="time"
+                <select
                   name="startTime"
                   required
-                  step={1800}
                   className="mt-1 rounded-brand border border-brand-border px-2 py-1.5 text-sm"
-                />
+                >
+                  {TIME_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium">Hasta</label>
-                <input
-                  type="time"
+                <select
                   name="endTime"
                   required
-                  step={1800}
                   className="mt-1 rounded-brand border border-brand-border px-2 py-1.5 text-sm"
-                />
+                >
+                  {TIME_OPTIONS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <Button type="submit" size="sm" variant="outline">
                 Agregar
@@ -290,22 +301,36 @@ export default async function HorariosPage({
           </div>
           <div>
             <label className="block text-xs font-medium">Desde hora (opcional)</label>
-            {/* Sin `step`: a diferencia del horario semanal, un permiso puede
-                empezar/terminar en cualquier minuto (ej. 09:15), y un `step`
-                aquí bloquea el envío del formulario sin avisar si no calza. */}
-            <input
-              type="time"
+            {/* <select> en vez de <input type="time">: además de resolver el
+                am/pm de forma confiable, evita que un horario que no calza
+                con el `step` bloquee el envío sin avisar. */}
+            <select
               name="startTime"
+              defaultValue=""
               className="mt-1 rounded-brand border border-brand-border px-2 py-1.5 text-sm"
-            />
+            >
+              <option value="">—</option>
+              {TIME_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium">Hasta hora (opcional)</label>
-            <input
-              type="time"
+            <select
               name="endTime"
+              defaultValue=""
               className="mt-1 rounded-brand border border-brand-border px-2 py-1.5 text-sm"
-            />
+            >
+              <option value="">—</option>
+              {TIME_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium">Motivo</label>

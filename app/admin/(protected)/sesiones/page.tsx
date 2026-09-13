@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
-import { professionalLabel } from "@/lib/scheduling";
+import { professionalLabel, formatDateTime12 } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteClientSession } from "./actions";
@@ -51,10 +51,7 @@ export default async function AdminSesionesPage() {
             {sessions.map((session) => (
               <tr key={session.id} className="border-b border-brand-border last:border-0">
                 <td className="px-4 py-3">
-                  {session.sessionDate.toLocaleString("es-PE", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
+                  {formatDateTime12(session.sessionDate)}
                 </td>
                 <td className="px-4 py-3">
                   <Link href={`/admin/clientes/${session.clientId}`} className="underline">

@@ -84,8 +84,8 @@ export function AppointmentForm({
           >
             <option value="">Seleccionar...</option>
             {TIME_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t}
+              <option key={t.value} value={t.value}>
+                {t.label}
               </option>
             ))}
           </select>

@@ -3,7 +3,7 @@ import { requireAdminSession } from "@/lib/auth";
 import {
   getDayAgenda,
   findTimeOff,
-  minutesToTime,
+  minutesToTime12,
   professionalLabel,
   type DayAgenda,
 } from "@/lib/scheduling";
@@ -146,7 +146,7 @@ export default async function AgendaPage({
         <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
           <table className="w-full table-fixed border-collapse text-left text-sm">
             <colgroup>
-              <col className="w-20" />
+              <col className="w-24" />
               {dayAgenda.map((d) => (
                 // `max(...)`: todas las columnas de profesional miden lo mismo
                 // (antes la primera quedaba más ancha por el contenido de su
@@ -157,7 +157,7 @@ export default async function AgendaPage({
             </colgroup>
             <thead className="border-b border-brand-border text-brand-muted">
               <tr>
-                <th className="w-20 px-3 py-2">Hora</th>
+                <th className="w-24 px-3 py-2">Hora</th>
                 {dayAgenda.map((d) => (
                   <th key={d.professional.id} className="px-3 py-2">
                     {professionalLabel(d.professional)}
@@ -169,7 +169,7 @@ export default async function AgendaPage({
                         {d.onTimeOff.adminUserId === null ? "Feriado" : "Ausente"}
                         {d.onTimeOff.startMinute !== null &&
                           d.onTimeOff.endMinute !== null &&
-                          ` ${minutesToTime(d.onTimeOff.startMinute)}-${minutesToTime(d.onTimeOff.endMinute)}`}
+                          ` ${minutesToTime12(d.onTimeOff.startMinute)}-${minutesToTime12(d.onTimeOff.endMinute)}`}
                       </span>
                     )}
                   </th>
@@ -179,8 +179,8 @@ export default async function AgendaPage({
             <tbody>
               {rows.map((rowMinute) => (
                 <tr key={rowMinute} className="border-b border-brand-border last:border-0">
-                  <td className="px-3 py-2 align-top text-brand-muted">
-                    {minutesToLabel(rowMinute)}
+                  <td className="whitespace-nowrap px-3 py-2 align-top text-brand-muted">
+                    {minutesToTime12(rowMinute)}
                   </td>
                   {dayAgenda.map((d) => {
                     const skip = skipUntil.get(d.professional.id) ?? 0;

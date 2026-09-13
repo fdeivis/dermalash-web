@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireAgendaManager } from "@/lib/auth";
+import { formatDateTime12 } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { AlertList } from "@/components/admin/AlertList";
@@ -48,7 +49,7 @@ export default async function AlertasPage() {
             source: a.source,
             appointmentId: a.appointmentId,
             acknowledgedAt: a.acknowledgedAt ? a.acknowledgedAt.toISOString() : null,
-            createdAtLabel: a.createdAt.toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }),
+            createdAtLabel: formatDateTime12(a.createdAt),
           }))}
         />
       </div>

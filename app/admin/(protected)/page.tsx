@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
-import { professionalLabel } from "@/lib/scheduling";
+import { professionalLabel, formatDateTime12 } from "@/lib/scheduling";
 
 // Los contadores deben reflejar siempre el estado actual: las acciones de
 // crear/editar/publicar/eliminar solo revalidan su propio listado
@@ -82,7 +82,7 @@ export default async function AdminDashboardPage() {
                   {a.client.firstName} {a.client.lastName}
                 </p>
                 <p className="text-xs text-brand-muted">
-                  {a.startAt.toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" })} ·{" "}
+                  {formatDateTime12(a.startAt)} ·{" "}
                   {professionalLabel(a.professional)} ·{" "}
                   <span className="rounded bg-brand-bg px-1.5 py-0.5">{STATUS_LABEL[a.status]}</span>
                 </p>

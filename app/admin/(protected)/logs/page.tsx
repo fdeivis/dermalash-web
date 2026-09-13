@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { formatDateTime12 } from "@/lib/scheduling";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { purgeOldLogs, purgeAllLogs } from "./actions";
 
@@ -91,7 +92,7 @@ export default async function LogsPage({
             {logs.map((log) => (
               <tr key={log.id} className="border-b border-brand-border last:border-0">
                 <td className="whitespace-nowrap px-4 py-3">
-                  {log.createdAt.toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" })}
+                  {formatDateTime12(log.createdAt)}
                 </td>
                 <td className="px-4 py-3">{log.userName}</td>
                 <td className="px-4 py-3">{log.userRole ?? "—"}</td>

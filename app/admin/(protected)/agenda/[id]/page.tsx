@@ -143,8 +143,8 @@ export default async function TurnoDetailPage({
                   className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
                 >
                   {TIME_OPTIONS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </select>

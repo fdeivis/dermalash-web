@@ -2,7 +2,15 @@ import { prisma } from "@/lib/prisma";
 import type { AdminUser, Schedule, TimeOff, Appointment, Service, Client } from "@prisma/client";
 import { startOfDay, endOfDay } from "@/lib/time";
 
-export { timeToMinutes, minutesToTime, generateTimeOptions, startOfDay, endOfDay } from "@/lib/time";
+export {
+  timeToMinutes,
+  minutesToTime,
+  minutesToTime12,
+  formatDateTime12,
+  generateTimeOptions,
+  startOfDay,
+  endOfDay,
+} from "@/lib/time";
 
 /** Profesionales que pueden tener turnos: Esteticistas y Encargados activos
  * (un Encargado "atiende" simplemente si además tiene horario cargado). */

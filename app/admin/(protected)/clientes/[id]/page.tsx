@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSignedUrl } from "@/lib/supabase";
 import { formatPrice } from "@/lib/utils";
+import { formatDateTime12 } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
 import { ClientAttachmentUploader } from "@/components/admin/ClientAttachmentUploader";
 
@@ -145,10 +146,7 @@ export default async function VerClientePage({
               {client.sessions.map((session) => (
                 <tr key={session.id} className="border-b border-brand-border last:border-0">
                   <td className="px-4 py-3">
-                    {session.sessionDate.toLocaleString("es-PE", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+                    {formatDateTime12(session.sessionDate)}
                   </td>
                   <td className="px-4 py-3">
                     {session.services.map((line) => line.service.name).join(", ")}
