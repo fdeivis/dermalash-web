@@ -9,7 +9,7 @@ export function TreatmentCard({ service }: { service: Service }) {
   return (
     <Link
       href={`/tratamientos/${service.slug}`}
-      className="group block overflow-hidden rounded-brand border border-brand-border bg-brand-surface transition-shadow hover:shadow-lg"
+      className="group block overflow-hidden rounded-brand border border-brand-border bg-brand-surface shadow-sm transition-shadow hover:shadow-xl"
     >
       <div className="relative aspect-[4/3] w-full bg-brand-bg">
         {image ? (

@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { branding } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 
@@ -49,8 +50,21 @@ function LoginForm() {
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-4">
-      <h1 className="font-display text-2xl">Administración {branding.siteName}</h1>
-      <p className="mt-1 text-sm text-brand-muted">Ingresá con tu cuenta de administrador.</p>
+      {branding.logoWithBgUrl ? (
+        <Image
+          src={branding.logoWithBgUrl}
+          alt={branding.siteName}
+          width={240}
+          height={240}
+          priority
+          className="mx-auto h-32 w-32 rounded-brand"
+        />
+      ) : (
+        <h1 className="font-display text-2xl">Administración {branding.siteName}</h1>
+      )}
+      <p className="mt-4 text-center text-sm text-brand-muted">
+        Ingresá con tu cuenta de administrador.
+      </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>

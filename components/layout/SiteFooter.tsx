@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { branding } from "@/lib/branding";
 
@@ -6,8 +7,18 @@ export function SiteFooter() {
     <footer className="border-t border-brand-border bg-brand-surface">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-3">
         <div>
-          <p className="font-display text-lg">{branding.siteName}</p>
-          <p className="mt-1 text-sm text-brand-muted">{branding.tagline}</p>
+          {branding.logoUrl ? (
+            <Image
+              src={branding.logoUrl}
+              alt={branding.siteName}
+              width={2038}
+              height={772}
+              className="h-9 w-auto"
+            />
+          ) : (
+            <p className="font-display text-lg">{branding.siteName}</p>
+          )}
+          <p className="mt-2 text-sm text-brand-muted">{branding.tagline}</p>
         </div>
         <div className="text-sm text-brand-muted">
           <p>{branding.contact.address}</p>

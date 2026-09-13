@@ -3,18 +3,18 @@
 @tailwind utilities;
 
 /*
- * Tokens de marca. Placeholder hasta contar con la identidad definitiva
- * de Dermalash (logo, paleta, tipografía) — ver lib/branding.ts.
- * Reemplazar únicamente estos valores no debería requerir tocar componentes.
+ * Tokens de marca, tomados del logo definitivo de Dermalash (paleta slate
+ * / plateado) — ver lib/branding.ts. Reemplazar únicamente estos valores
+ * no debería requerir tocar componentes.
  */
 :root {
-  --brand-bg: #faf7f2;
+  --brand-bg: #f4f6f8;
   --brand-surface: #ffffff;
-  --brand-ink: #2b2521;
-  --brand-muted: #7a7167;
-  --brand-accent: #b3654a;
+  --brand-ink: #2c3a47;
+  --brand-muted: #6b7684;
+  --brand-accent: #3e5266;
   --brand-accent-ink: #ffffff;
-  --brand-border: #e8e1d8;
+  --brand-border: #dce1e6;
   --brand-radius: 0.75rem;
 }
 
