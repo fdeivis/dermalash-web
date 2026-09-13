@@ -20,8 +20,8 @@ const clientSchema = z.object({
     .regex(/^\d{9,12}$/, "El WhatsApp debe tener entre 9 y 12 dígitos, sin espacios ni símbolos")
     .optional(),
   email: z.string().email("Email inválido").optional(),
-  notes: z.string().optional(),
-  healthNotes: z.string().optional(),
+  notes: z.string().max(2000, "Máximo 2000 caracteres").optional(),
+  healthNotes: z.string().max(5000, "Máximo 5000 caracteres").optional(),
 });
 
 function parseFormData(formData: FormData) {
@@ -87,6 +87,8 @@ export async function deleteClient(id: string) {
 }
 
 const attachmentKindSchema = z.enum(["PHOTO", "DOCUMENT", "HEALTH_RECORD"]);
+// Sin SVG a propósito (puede llevar <script> embebido).
+const ATTACHMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
 
 export async function addClientAttachment(
   clientId: string,
@@ -99,6 +101,9 @@ export async function addClientAttachment(
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { error: "No se seleccionó ningún archivo" };
+  }
+  if (!ATTACHMENT_TYPES.includes(file.type)) {
+    return { error: "El archivo debe ser una imagen (JPG, PNG, WEBP, GIF) o un PDF" };
   }
 
   try {

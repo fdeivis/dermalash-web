@@ -11,7 +11,7 @@ import { logAction } from "@/lib/audit";
 
 const serviceSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
-  description: z.string().min(1, "La descripción es obligatoria"),
+  description: z.string().min(1, "La descripción es obligatoria").max(5000, "Máximo 5000 caracteres"),
   durationMinutes: z.coerce.number().int().positive().optional(),
   price: z.coerce.number().nonnegative(),
   priceFrom: z.boolean(),

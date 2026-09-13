@@ -21,7 +21,7 @@ const employeeSchema = z.object({
 
 const createEmployeeSchema = employeeSchema.extend({
   email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
+  password: z.string().min(8, "Mínimo 8 caracteres"),
 });
 
 function parseEmployeeFormData(formData: FormData) {
@@ -119,7 +119,7 @@ export async function updateEmployee(id: string, formData: FormData) {
       role: data.role,
       email: data.email.toLowerCase(),
     };
-    if (newPassword && String(newPassword).length >= 6) {
+    if (newPassword && String(newPassword).length >= 8) {
       adminUserData.passwordHash = await bcrypt.hash(String(newPassword), 10);
     }
 
@@ -183,7 +183,7 @@ const salaryPeriodSchema = z.object({
   amount: z.coerce.number().nonnegative(),
   validFrom: z.coerce.date(),
   validTo: z.coerce.date().optional(),
-  notes: z.string().optional(),
+  notes: z.string().max(500, "Máximo 500 caracteres").optional(),
 });
 
 export async function addSalaryPeriod(employeeId: string, formData: FormData) {

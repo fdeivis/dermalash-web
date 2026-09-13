@@ -10,8 +10,8 @@ import { logAction } from "@/lib/audit";
 
 const postSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
-  excerpt: z.string().min(1, "El resumen es obligatorio"),
-  content: z.string().min(1, "El contenido es obligatorio"),
+  excerpt: z.string().min(1, "El resumen es obligatorio").max(500, "Máximo 500 caracteres"),
+  content: z.string().min(1, "El contenido es obligatorio").max(20000, "Máximo 20000 caracteres"),
   coverImage: z.string().url().optional().or(z.literal("")),
 });
 

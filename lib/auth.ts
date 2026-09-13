@@ -5,6 +5,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
 
+// Hash bcrypt de un valor arbitrario, nunca alcanzable con ninguna
+// contraseña real: solo existe para que bcrypt.compare tarde lo mismo
+// exista o no el usuario (mitiga enumeración de emails por timing).
+const DUMMY_PASSWORD_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8n/AXi/A8B7XBJvvnKG4AmYABtRJUS";
+
 export const authOptions: AuthOptions = {
   session: { strategy: "jwt" },
   pages: {
@@ -19,14 +24,34 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) return null;
+        const email = credentials.email.toLowerCase();
 
-        const user = await prisma.adminUser.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+        // Bloqueo por fuerza bruta respaldado en la propia base (no en
+        // memoria): funciona igual aunque cada invocación serverless sea
+        // una instancia distinta. 5 intentos fallidos / 15 min por email.
+        const recentFailures = await prisma.auditLog.count({
+          where: {
+            action: "login.fallido",
+            detail: email,
+            createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+          },
         });
-        if (!user || !user.active) return null;
+        if (recentFailures >= 5) return null;
 
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) return null;
+        const user = await prisma.adminUser.findUnique({ where: { email } });
+        // Comparar siempre contra un hash (real o señuelo) para que el
+        // tiempo de respuesta no delate si el email existe o no.
+        const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+        const valid = await bcrypt.compare(credentials.password, hashToCompare);
+
+        if (!user || !user.active || !valid) {
+          await prisma.auditLog
+            .create({
+              data: { userName: email, action: "login.fallido", entityType: "AdminUser", detail: email },
+            })
+            .catch((error) => console.error("No se pudo registrar el log de auditoría:", error));
+          return null;
+        }
 
         await prisma.auditLog
           .create({

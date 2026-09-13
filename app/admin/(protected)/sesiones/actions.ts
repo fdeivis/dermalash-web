@@ -15,7 +15,7 @@ const sessionSchema = z.object({
   serviceIds: z.array(z.string()).min(1, "Seleccioná al menos un servicio"),
   totalAmount: z.coerce.number().nonnegative(),
   paymentMethod: z.enum(["EFECTIVO", "YAPE", "PLIN", "TARJETA", "TRANSFERENCIA", "OTRO"]),
-  notes: z.string().optional(),
+  notes: z.string().max(2000, "Máximo 2000 caracteres").optional(),
 });
 
 export async function createClientSession(formData: FormData) {

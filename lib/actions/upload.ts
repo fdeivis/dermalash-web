@@ -3,6 +3,8 @@
 import { requireAdminSession } from "@/lib/auth";
 import { uploadImage, uploadPrivateFile } from "@/lib/supabase";
 
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 export async function uploadImageAction(
   folder: string,
   formData: FormData
@@ -13,8 +15,10 @@ export async function uploadImageAction(
   if (!(file instanceof File) || file.size === 0) {
     return { error: "No se seleccionó ningún archivo" };
   }
-  if (!file.type.startsWith("image/")) {
-    return { error: "El archivo debe ser una imagen" };
+  // Allowlist explícito (no "image/*"): excluye SVG a propósito, que puede
+  // llevar <script> embebido (vector de XSS almacenado).
+  if (!IMAGE_TYPES.includes(file.type)) {
+    return { error: "El archivo debe ser una imagen (JPG, PNG, WEBP o GIF)" };
   }
 
   try {

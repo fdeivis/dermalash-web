@@ -10,8 +10,8 @@ import { logAction } from "@/lib/audit";
 
 const promotionSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
-  description: z.string().min(1, "La descripción es obligatoria"),
-  conditions: z.string().optional(),
+  description: z.string().min(1, "La descripción es obligatoria").max(5000, "Máximo 5000 caracteres"),
+  conditions: z.string().max(2000, "Máximo 2000 caracteres").optional(),
   promoPrice: z.coerce.number().nonnegative().optional(),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
