@@ -11,6 +11,9 @@ const LINKS = [
   { href: "/admin/servicios", label: "Servicios" },
   { href: "/admin/promociones", label: "Promociones" },
   { href: "/admin/novedades", label: "Novedades" },
+  { href: "/admin/clientes", label: "Clientes" },
+  { href: "/admin/empleados", label: "Empleados" },
+  { href: "/admin/sesiones", label: "Sesiones" },
 ];
 
 export function AdminNav() {

@@ -8,11 +8,46 @@ async function main() {
 
   await prisma.adminUser.upsert({
     where: { email: "admin@dermalash.pe" },
-    update: {},
+    update: { role: "SOCIO" },
     create: {
       email: "admin@dermalash.pe",
       passwordHash,
       name: "Admin Dermalash",
+      role: "SOCIO",
+    },
+  });
+
+  const esteticistaUser = await prisma.adminUser.upsert({
+    where: { email: "esteticista@dermalash.pe" },
+    update: { role: "ESTETICISTA" },
+    create: {
+      email: "esteticista@dermalash.pe",
+      passwordHash,
+      name: "Ana Esteticista",
+      role: "ESTETICISTA",
+    },
+  });
+
+  await prisma.employee.upsert({
+    where: { adminUserId: esteticistaUser.id },
+    update: {},
+    create: {
+      adminUserId: esteticistaUser.id,
+      firstName: "Ana",
+      lastName: "Esteticista",
+      phone: "51999999998",
+    },
+  });
+
+  await prisma.client.upsert({
+    where: { id: "seed-client-demo" },
+    update: {},
+    create: {
+      id: "seed-client-demo",
+      firstName: "Camila",
+      lastName: "Cliente Demo",
+      phone: "51999999997",
+      createdByUserId: esteticistaUser.id,
     },
   });
 
@@ -102,7 +137,9 @@ async function main() {
     },
   });
 
-  console.log("Seed completado. Admin: admin@dermalash.pe / dermalash123");
+  console.log("Seed completado.");
+  console.log("Socio: admin@dermalash.pe / dermalash123");
+  console.log("Esteticista: esteticista@dermalash.pe / dermalash123");
 }
 
 main()

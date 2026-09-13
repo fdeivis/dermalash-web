@@ -7,16 +7,22 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const [services, promotions, posts] = await Promise.all([
+  const [services, promotions, posts, clients, employees, sessions] = await Promise.all([
     prisma.service.count(),
     prisma.promotion.count(),
     prisma.post.count(),
+    prisma.client.count(),
+    prisma.employee.count(),
+    prisma.clientSession.count(),
   ]);
 
   const cards = [
     { label: "Servicios", count: services, href: "/admin/servicios" },
     { label: "Promociones", count: promotions, href: "/admin/promociones" },
     { label: "Novedades", count: posts, href: "/admin/novedades" },
+    { label: "Clientes", count: clients, href: "/admin/clientes" },
+    { label: "Empleados", count: employees, href: "/admin/empleados" },
+    { label: "Sesiones", count: sessions, href: "/admin/sesiones" },
   ];
 
   return (
