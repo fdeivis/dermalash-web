@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { professionalLabel } from "@/lib/scheduling";
+import { professionalLabel, peruParts, peruToday, endOfDay } from "@/lib/scheduling";
 import { SessionForm } from "@/components/admin/SessionForm";
 import { createClientSession } from "../actions";
 
@@ -9,11 +9,11 @@ import { createClientSession } from "../actions";
 // nueva no revalida esta página (mismo caso que /admin/promociones/nuevo).
 export const dynamic = "force-dynamic";
 
+// `date` acá es el startAt real del turno: se lee en hora de Perú.
 function toDateTimeLocal(date: Date) {
+  const { year, month, day, hour, minute } = peruParts(date);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
 }
 
 export default async function NuevaSesionPage({
@@ -33,11 +33,12 @@ export default async function NuevaSesionPage({
   });
   if (!appointment) redirect("/admin/agenda");
 
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setUTCHours(0, 0, 0, 0);
-  const endOfToday = new Date(now);
-  endOfToday.setUTCHours(23, 59, 59, 999);
+  // "Hoy" en el calendario de Perú, no en el huso del servidor: una
+  // promoción cargada hasta "hoy" no debería desaparecer 5 horas antes de
+  // medianoche en Perú solo porque en UTC ya es el día siguiente.
+  const today = peruToday();
+  const startOfToday = today;
+  const endOfToday = endOfDay(today);
 
   const [clients, professionals, services, promotions] = await Promise.all([
     prisma.client.findMany({ orderBy: { lastName: "asc" } }),

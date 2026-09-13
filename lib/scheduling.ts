@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { AdminUser, Schedule, TimeOff, Appointment, Service, Client } from "@prisma/client";
-import { startOfDay, endOfDay } from "@/lib/time";
+import { startOfDay, endOfDay, peruParts, peruDayRange } from "@/lib/time";
 
 export {
   timeToMinutes,
@@ -10,6 +10,13 @@ export {
   generateTimeOptions,
   startOfDay,
   endOfDay,
+  addDaysUTC,
+  peruToday,
+  parseDateKey,
+  parseDateTimeLocal,
+  fromPeruParts,
+  peruParts,
+  peruDayRange,
 } from "@/lib/time";
 
 /** Profesionales que pueden tener turnos: Esteticistas y Encargados activos
@@ -53,20 +60,26 @@ export function findTimeOff(
 }
 
 /** Variante de `findTimeOff` para cuando no se tiene ya cargada la agenda del
- * día completa (ej. al validar una creación/reprogramación de turno). */
+ * día completa (ej. al validar una creación/reprogramación de turno).
+ * `startAt`/`endAt` son instantes reales (hora de Perú ya convertida a UTC
+ * por `buildRange`); se los pasa por `peruParts` para saber a qué día
+ * calendario y a qué franja horaria de Perú corresponden. */
 export async function getTimeOffForDay(adminUserId: string, startAt: Date, endAt: Date) {
+  const startParts = peruParts(startAt);
+  const dayKey = new Date(Date.UTC(startParts.year, startParts.month - 1, startParts.day));
   const timeOffs = await prisma.timeOff.findMany({
     where: {
       OR: [{ adminUserId }, { adminUserId: null }],
-      startDate: { lte: endOfDay(startAt) },
-      endDate: { gte: startOfDay(startAt) },
+      startDate: { lte: endOfDay(dayKey) },
+      endDate: { gte: startOfDay(dayKey) },
     },
   });
+  const endParts = peruParts(endAt);
   const range = {
-    startMinute: startAt.getHours() * 60 + startAt.getMinutes(),
-    endMinute: endAt.getHours() * 60 + endAt.getMinutes(),
+    startMinute: startParts.hour * 60 + startParts.minute,
+    endMinute: endParts.hour * 60 + endParts.minute,
   };
-  return findTimeOff(timeOffs, adminUserId, startAt, range);
+  return findTimeOff(timeOffs, adminUserId, dayKey, range);
 }
 
 export type AppointmentWithDetails = Appointment & {
@@ -89,7 +102,11 @@ export type DayAgenda = {
  * paralelo.
  */
 export async function getDayAgenda(day: Date): Promise<DayAgenda[]> {
-  const dayOfWeek = day.getDay();
+  // `day` es una fecha calendario neutra (ver peruToday/parseDateKey): para
+  // los turnos (que guardan el instante real) hay que traducirla al rango
+  // real [00:00, 24:00) de ESE día en hora de Perú, no en UTC.
+  const dayOfWeek = day.getUTCDay();
+  const { start: dayStart, end: dayEnd } = peruDayRange(day);
   const [professionals, schedules, timeOffs, appointments] = await Promise.all([
     getSchedulableProfessionals(),
     prisma.schedule.findMany({ where: { dayOfWeek } }),
@@ -101,7 +118,7 @@ export async function getDayAgenda(day: Date): Promise<DayAgenda[]> {
     // el horario — eso lo decide la propia página al armar cada celda.
     prisma.appointment.findMany({
       where: {
-        startAt: { gte: startOfDay(day), lte: endOfDay(day) },
+        startAt: { gte: dayStart, lte: dayEnd },
       },
       include: { services: { include: { service: true } }, client: true },
       orderBy: { startAt: "asc" },
@@ -140,7 +157,8 @@ export async function hasOverlap(
 
 /** [startAt, endAt) debe caer dentro de algún bloque de horario del profesional ese día de semana. */
 export function isWithinSchedule(schedule: Schedule[], startAt: Date, endAt: Date) {
-  const startMinute = startAt.getHours() * 60 + startAt.getMinutes();
-  const endMinute = endAt.getHours() * 60 + endAt.getMinutes();
+  const startMinute = peruParts(startAt).hour * 60 + peruParts(startAt).minute;
+  const { hour: endHour, minute: endMin } = peruParts(endAt);
+  const endMinute = endHour * 60 + endMin;
   return schedule.some((s) => startMinute >= s.startMinute && endMinute <= s.endMinute);
 }

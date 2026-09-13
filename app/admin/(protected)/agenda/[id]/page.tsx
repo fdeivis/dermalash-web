@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAgendaManager } from "@/lib/auth";
-import { getSchedulableProfessionals, professionalLabel } from "@/lib/scheduling";
+import { getSchedulableProfessionals, professionalLabel, peruParts } from "@/lib/scheduling";
 import { generateTimeOptions } from "@/lib/time";
 
 const TIME_OPTIONS = generateTimeOptions();
@@ -29,12 +29,16 @@ function pad(n: number) {
   return n.toString().padStart(2, "0");
 }
 
+// `date` acá es el startAt real de un turno: se lee en hora de Perú, no en
+// el huso del servidor (ver lib/time.ts).
 function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const { year, month, day } = peruParts(date);
+  return `${year}-${pad(month)}-${pad(day)}`;
 }
 
 function toTimeKey(date: Date) {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const { hour, minute } = peruParts(date);
+  return `${pad(hour)}:${pad(minute)}`;
 }
 
 export default async function TurnoDetailPage({

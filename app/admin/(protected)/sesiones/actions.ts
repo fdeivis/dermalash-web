@@ -7,11 +7,15 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminSession, requireSocioOrAdmin } from "@/lib/auth";
 import { resolveSessionPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
+import { parseDateTimeLocal } from "@/lib/scheduling";
 
 const sessionSchema = z.object({
   clientId: z.string().min(1, "Seleccioná un cliente"),
   attendedByUserId: z.string().min(1, "Seleccioná un profesional"),
-  sessionDate: z.coerce.date(),
+  // string, no z.coerce.date(): ese coerce usa `new Date(valorDelInput)`, que
+  // interpreta "YYYY-MM-DDTHH:MM" en el huso del servidor (UTC en Vercel) en
+  // vez de en hora de Perú. Se convierte a mano más abajo con parseDateTimeLocal.
+  sessionDate: z.string().min(1, "Elegí una fecha y hora"),
   serviceIds: z.array(z.string()).min(1, "Seleccioná al menos un servicio"),
   totalAmount: z.coerce.number().nonnegative(),
   paymentMethod: z.enum(["EFECTIVO", "YAPE", "PLIN", "TARJETA", "TRANSFERENCIA", "OTRO"]),
@@ -34,18 +38,19 @@ export async function createClientSession(formData: FormData) {
     notes: formData.get("notes") || undefined,
     appointmentId: formData.get("appointmentId") || undefined,
   });
+  const sessionDate = parseDateTimeLocal(data.sessionDate);
 
   // El precio/promoción se resuelve de nuevo acá (no se confía en lo que
   // mostró el formulario) para que el snapshot use siempre la fecha real de
   // la sesión, aunque el usuario la haya cambiado a una fecha pasada.
-  const resolved = await resolveSessionPricing(data.serviceIds, data.sessionDate);
+  const resolved = await resolveSessionPricing(data.serviceIds, sessionDate);
 
   const clientSession = await prisma.$transaction(async (tx) => {
     const created = await tx.clientSession.create({
       data: {
         clientId: data.clientId,
         attendedByUserId: data.attendedByUserId,
-        sessionDate: data.sessionDate,
+        sessionDate,
         totalAmount: data.totalAmount,
         paymentMethod: data.paymentMethod,
         notes: data.notes,
@@ -68,7 +73,7 @@ export async function createClientSession(formData: FormData) {
         sessionId: created.id,
         amount: data.totalAmount,
         paymentMethod: data.paymentMethod,
-        occurredAt: data.sessionDate,
+        occurredAt: sessionDate,
       },
     });
 

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAgendaManager, requireAdminRole } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 import { createAlert } from "@/lib/alerts";
-import { hasOverlap, isWithinSchedule, getTimeOffForDay } from "@/lib/scheduling";
+import { hasOverlap, isWithinSchedule, getTimeOffForDay, fromPeruParts, peruParts } from "@/lib/scheduling";
 
 const appointmentSchema = z.object({
   clientId: z.string().min(1, "Seleccioná un cliente"),
@@ -19,11 +19,19 @@ const appointmentSchema = z.object({
   force: z.boolean().optional(),
 });
 
+// `date`/`startTime` vienen pensados en hora de Perú (lo que tipeó/eligió la
+// persona), por eso pasan por fromPeruParts en vez de un new Date()/setHours
+// directo, que interpretaría la hora en el huso del servidor (UTC en
+// Vercel) y la correría 5 horas.
 function buildRange(date: string, startTime: string) {
+  const [year, month, day] = date.split("-").map(Number);
   const [h, m] = startTime.split(":").map(Number);
-  const startAt = new Date(`${date}T00:00:00`);
-  startAt.setHours(h, m, 0, 0);
-  return startAt;
+  return fromPeruParts(year, month, day, h, m);
+}
+
+function dateKeyOf(date: Date) {
+  const { year, month, day } = peruParts(date);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 async function resolveServicesAndEnd(serviceIds: string[], startAt: Date) {
@@ -52,7 +60,7 @@ export async function createAppointment(formData: FormData) {
   const startAt = buildRange(data.date, data.startTime);
   const { services, endAt } = await resolveServicesAndEnd(data.serviceIds, startAt);
 
-  const dayOfWeek = startAt.getDay();
+  const dayOfWeek = peruParts(startAt).weekday;
   const [schedule, timeOff] = await Promise.all([
     prisma.schedule.findMany({ where: { adminUserId: data.professionalId, dayOfWeek } }),
     getTimeOffForDay(data.professionalId, startAt, endAt),
@@ -130,7 +138,7 @@ export async function rescheduleAppointment(id: string, formData: FormData) {
   const totalMinutes = existing.services.reduce((sum, l) => sum + l.service.durationMinutes, 0);
   const endAt = new Date(startAt.getTime() + totalMinutes * 60_000);
 
-  const dayOfWeek = startAt.getDay();
+  const dayOfWeek = peruParts(startAt).weekday;
   const [schedule, timeOff] = await Promise.all([
     prisma.schedule.findMany({ where: { adminUserId: data.professionalId, dayOfWeek } }),
     getTimeOffForDay(data.professionalId, startAt, endAt),
@@ -197,7 +205,7 @@ export async function cancelAppointment(id: string, formData: FormData) {
   );
 
   revalidatePath("/admin/agenda");
-  redirect(`/admin/agenda?date=${existing.startAt.toISOString().slice(0, 10)}`);
+  redirect(`/admin/agenda?date=${dateKeyOf(existing.startAt)}`);
 }
 
 export async function markNoShow(id: string) {
@@ -232,7 +240,7 @@ export async function deleteAppointment(id: string) {
     where: { id },
     include: { client: true },
   });
-  const dateKey = existing.startAt.toISOString().slice(0, 10);
+  const dateKey = dateKeyOf(existing.startAt);
 
   await prisma.$transaction([
     prisma.appointmentService.deleteMany({ where: { appointmentId: id } }),

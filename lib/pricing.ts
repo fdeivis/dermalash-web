@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { peruParts, startOfDay, endOfDay } from "@/lib/scheduling";
 
 export type PriceLine = {
   serviceId: string;
@@ -12,16 +13,12 @@ export type ResolvedSessionPricing = {
   appliedPromotionId: string | null;
 };
 
-function startOfDay(date: Date) {
-  const d = new Date(date);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(date: Date) {
-  const d = new Date(date);
-  d.setUTCHours(23, 59, 59, 999);
-  return d;
+// Día calendario de Perú (no el de UTC) al que pertenece un instante real —
+// una sesión a las 11pm en Perú cae en el día siguiente en UTC, y debe
+// seguir viendo las promociones vigentes de SU día, no del de UTC.
+function peruDayOf(date: Date): Date {
+  const { year, month, day } = peruParts(date);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 /**
@@ -42,11 +39,11 @@ export async function resolveSessionPricing(
     prisma.promotion.findMany({
       where: {
         status: "PUBLISHED",
-        // Compara por día completo (no por instante exacto): una sesión
-        // registrada a medianoche debe seguir viendo vigente una promoción
-        // que arrancó más tarde ese mismo día.
-        startDate: { lte: endOfDay(date) },
-        endDate: { gte: startOfDay(date) },
+        // Compara por día completo de Perú (no por instante exacto ni por
+        // día de UTC): una sesión registrada a medianoche debe seguir viendo
+        // vigente una promoción que arrancó más tarde ese mismo día.
+        startDate: { lte: endOfDay(peruDayOf(date)) },
+        endDate: { gte: startOfDay(peruDayOf(date)) },
         promoPrice: { not: null },
       },
       include: { services: true },

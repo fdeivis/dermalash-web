@@ -5,6 +5,10 @@ import {
   findTimeOff,
   minutesToTime12,
   professionalLabel,
+  parseDateKey,
+  peruToday,
+  addDaysUTC,
+  peruParts,
   type DayAgenda,
 } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
@@ -19,18 +23,14 @@ function pad(n: number) {
   return n.toString().padStart(2, "0");
 }
 
+// `date` acá siempre es una fecha calendario neutra (peruToday/parseDateKey),
+// no un instante real: se leen sus campos con los getters UTC a propósito.
 function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
 function minutesToLabel(minutes: number) {
   return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
-}
-
-function addDays(date: Date, days: number) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -50,7 +50,7 @@ export default async function AgendaPage({
   const session = await requireAdminSession();
   const canManage = ["SOCIO", "ADMIN", "ENCARGADO"].includes(session.user.role);
 
-  const day = dateParam ? new Date(`${dateParam}T00:00:00`) : new Date();
+  const day = dateParam ? parseDateKey(dateParam) : peruToday();
   const dateKey = toDateKey(day);
 
   const allDayAgenda = await getDayAgenda(day);
@@ -85,7 +85,7 @@ export default async function AgendaPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl">Agenda</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={`/admin/agenda?date=${toDateKey(addDays(day, -1))}`}>
+          <Link href={`/admin/agenda?date=${toDateKey(addDaysUTC(day, -1))}`}>
             <Button variant="outline" size="sm">
               ← Día anterior
             </Button>
@@ -93,7 +93,7 @@ export default async function AgendaPage({
           <span className="text-sm font-medium">
             {day.toLocaleDateString("es-PE", { weekday: "long", day: "2-digit", month: "long" })}
           </span>
-          <Link href={`/admin/agenda?date=${toDateKey(addDays(day, 1))}`}>
+          <Link href={`/admin/agenda?date=${toDateKey(addDaysUTC(day, 1))}`}>
             <Button variant="outline" size="sm">
               Día siguiente →
             </Button>
@@ -191,8 +191,10 @@ export default async function AgendaPage({
                     // su celda de origen para que quede visible qué pasó ahí.
                     const isBlocking = (a: (typeof d.appointments)[number]) =>
                       a.status !== "CANCELADO" && a.status !== "NO_ASISTIO";
-                    const startsAt = (a: (typeof d.appointments)[number]) =>
-                      a.startAt.getHours() * 60 + a.startAt.getMinutes() === rowMinute;
+                    const startsAt = (a: (typeof d.appointments)[number]) => {
+                      const p = peruParts(a.startAt);
+                      return p.hour * 60 + p.minute === rowMinute;
+                    };
 
                     const appointment = d.appointments.find((a) => startsAt(a) && isBlocking(a));
                     const inactiveHere = d.appointments.filter((a) => startsAt(a) && !isBlocking(a));

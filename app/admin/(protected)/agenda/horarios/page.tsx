@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAgendaManager } from "@/lib/auth";
-import { getSchedulableProfessionals, minutesToTime12, professionalLabel } from "@/lib/scheduling";
+import {
+  getSchedulableProfessionals,
+  minutesToTime12,
+  professionalLabel,
+  peruToday,
+} from "@/lib/scheduling";
 import { generateTimeOptions } from "@/lib/time";
 
 const TIME_OPTIONS = generateTimeOptions();
@@ -29,9 +34,11 @@ function hoursLabel(startMinute: number | null, endMinute: number | null) {
 
 // Feriados/ausencias se navegan mes a mes en vez de listar todo junto: así no
 // se amontonan a medida que se cargan más, y de paso permite revisar meses
-// pasados o planificar meses futuros.
+// pasados o planificar meses futuros. `date`/`monthKey` acá son siempre
+// fechas calendario neutras (ver lib/time.ts), por eso getters/constructores
+// UTC en vez de locales.
 function toMonthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function parseMonthKey(monthKey: string) {
@@ -41,14 +48,14 @@ function parseMonthKey(monthKey: string) {
 
 function monthRange(monthKey: string) {
   const { year, month } = parseMonthKey(monthKey);
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59, 999);
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
   return { start, end };
 }
 
 function addMonths(monthKey: string, delta: number) {
   const { year, month } = parseMonthKey(monthKey);
-  return toMonthKey(new Date(year, month - 1 + delta, 1));
+  return toMonthKey(new Date(Date.UTC(year, month - 1 + delta, 1)));
 }
 
 function monthLabel(monthKey: string) {
@@ -64,7 +71,7 @@ export default async function HorariosPage({
 }) {
   await requireAgendaManager();
   const { month: monthParam } = await searchParams;
-  const monthKey = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : toMonthKey(new Date());
+  const monthKey = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : toMonthKey(peruToday());
   const { start: monthStart, end: monthEnd } = monthRange(monthKey);
 
   const [professionals, timeOffs] = await Promise.all([
@@ -189,7 +196,7 @@ export default async function HorariosPage({
             Mes siguiente →
           </Button>
         </Link>
-        {monthKey !== toMonthKey(new Date()) && (
+        {monthKey !== toMonthKey(peruToday()) && (
           <Link href="/admin/agenda/horarios" scroll={false}>
             <Button variant="outline" size="sm">
               Mes actual
