@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+import { professionalLabel } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteClientSession } from "./actions";
@@ -25,7 +26,10 @@ export default async function AdminSesionesPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl">Sesiones</h1>
-        <Link href="/admin/sesiones/nuevo">
+        {/* Toda sesión nueva sale de un turno (existente o creado ahí mismo
+            para un cliente sin cita previa), para no saltear la validación
+            de disponibilidad de la Agenda. */}
+        <Link href="/admin/agenda">
           <Button>Nueva sesión</Button>
         </Link>
       </div>
@@ -60,7 +64,7 @@ export default async function AdminSesionesPage() {
                 <td className="px-4 py-3">
                   {session.services.map((line) => line.service.name).join(", ")}
                 </td>
-                <td className="px-4 py-3">{session.attendedBy.name}</td>
+                <td className="px-4 py-3">{professionalLabel(session.attendedBy)}</td>
                 <td className="px-4 py-3">{PAYMENT_LABEL[session.paymentMethod]}</td>
                 <td className="px-4 py-3">{formatPrice(session.totalAmount.toString())}</td>
                 <td className="px-4 py-3">

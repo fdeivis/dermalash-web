@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
-import { purgeOldLogs } from "./actions";
+import { purgeOldLogs, purgeAllLogs } from "./actions";
 
 // La actividad debe verse siempre al día: no hay ninguna acción que
 // revalide esta página puntualmente (loguea desde todos lados).
@@ -15,7 +15,7 @@ export default async function LogsPage({
   searchParams: Promise<{ purged?: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "SOCIO") {
+  if (!session || !["SOCIO", "ADMIN"].includes(session.user.role)) {
     redirect("/admin");
   }
 
@@ -30,7 +30,7 @@ export default async function LogsPage({
     <div>
       <h1 className="font-display text-2xl">Registro de actividad</h1>
       <p className="mt-1 text-sm text-brand-muted">
-        Qué hizo cada usuario y cuándo. Solo visible para el Socio.
+        Qué hizo cada usuario y cuándo. Visible para Socio y Administrador.
       </p>
 
       {purged !== undefined && (
@@ -61,6 +61,17 @@ export default async function LogsPage({
           confirmMessage="¿Eliminar todos los logs más antiguos que ese número de días? No se puede deshacer."
         >
           Purgar
+        </ConfirmSubmitButton>
+      </form>
+
+      <form action={purgeAllLogs} className="mt-3">
+        <ConfirmSubmitButton
+          type="submit"
+          variant="danger"
+          size="sm"
+          confirmMessage="¿Eliminar TODOS los logs, incluidos los más recientes? No se puede deshacer."
+        >
+          Eliminar todos los logs
         </ConfirmSubmitButton>
       </form>
 

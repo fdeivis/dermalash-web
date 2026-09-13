@@ -36,8 +36,32 @@ enum ContentStatus {
 
 enum Role {
   SOCIO
+  ADMIN
   ENCARGADO
   ESTETICISTA
+}
+
+// MVP3: estado de un turno. RESERVADO/CONFIRMADO ocupan el horario del
+// profesional; ATENDIDO se llega solo al registrar la sesión vinculada
+// (nunca se marca a mano); CANCELADO/NO_ASISTIO liberan el horario.
+enum AppointmentStatus {
+  RESERVADO
+  CONFIRMADO
+  ATENDIDO
+  CANCELADO
+  NO_ASISTIO
+}
+
+enum AppointmentSource {
+  MANUAL
+  WHATSAPP
+}
+
+enum AlertType {
+  TURNO_CREADO
+  TURNO_MODIFICADO
+  TURNO_CANCELADO
+  TURNO_BORRADO
 }
 
 enum PaymentMethod {
@@ -67,8 +91,94 @@ model AdminUser {
   active                 Boolean         @default(true)
   employee               Employee?
   clientSessionsAttended ClientSession[] @relation("AttendedBy")
+  schedules              Schedule[]
+  timeOffs               TimeOff[]
+  appointments           Appointment[]   @relation("AppointmentProfessional")
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
+}
+
+// Horario semanal recurrente de un profesional (Esteticista o Encargado que
+// también atiende). Lo administra Encargado/Socio/Admin, nunca el propio
+// profesional.
+model Schedule {
+  id          String    @id @default(cuid())
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id])
+  adminUserId String
+  dayOfWeek   Int // 0 = domingo ... 6 = sábado
+  startMinute Int // minutos desde medianoche, ej. 09:00 = 540
+  endMinute   Int
+  createdAt   DateTime  @default(now())
+
+  @@index([adminUserId, dayOfWeek])
+}
+
+// Excepción puntual al horario (día libre, licencia, vacaciones, permiso por
+// horas). Cubre el rango [startDate, endDate] completo; startMinute/endMinute
+// nulos = todo el día, y si están cargados acotan la excepción a esa franja
+// horaria dentro de cada día del rango (ej. permiso de 09:00 a 13:00).
+// adminUserId nulo = aplica a todos los profesionales (ej. un feriado).
+model TimeOff {
+  id          String     @id @default(cuid())
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+  adminUserId String?
+  startDate   DateTime
+  endDate     DateTime
+  startMinute Int?
+  endMinute   Int?
+  reason      String?
+  createdAt   DateTime   @default(now())
+
+  @@index([adminUserId, startDate])
+}
+
+model Appointment {
+  id                    String               @id @default(cuid())
+  client                Client               @relation(fields: [clientId], references: [id])
+  clientId              String
+  professional          AdminUser            @relation("AppointmentProfessional", fields: [professionalId], references: [id])
+  professionalId        String
+  services              AppointmentService[]
+  startAt               DateTime
+  endAt                 DateTime
+  status                AppointmentStatus    @default(RESERVADO)
+  source                AppointmentSource    @default(MANUAL)
+  forcedOutsideSchedule Boolean              @default(false)
+  cancelReason          String?
+  notes                 String?
+  session               ClientSession?
+  createdByUserId       String
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([professionalId, startAt])
+  @@index([clientId, startAt])
+  @@index([status])
+}
+
+model AppointmentService {
+  id            String      @id @default(cuid())
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  appointmentId String
+  service       Service     @relation(fields: [serviceId], references: [id])
+  serviceId     String
+}
+
+// Bandeja de alertas del panel (creación/modificación/cancelación de
+// turnos). appointmentId queda como texto plano, no relación: un turno
+// borrado por Admin debe seguir siendo legible en la alerta histórica
+// (mismo criterio que AuditLog.userId).
+model Alert {
+  id                   String            @id @default(cuid())
+  type                 AlertType
+  appointmentId        String?
+  message              String
+  source               AppointmentSource @default(MANUAL)
+  acknowledgedAt       DateTime?
+  acknowledgedByUserId String?
+  createdAt            DateTime          @default(now())
+
+  @@index([acknowledgedAt, createdAt])
 }
 
 model Employee {
@@ -115,6 +225,7 @@ model Client {
   healthNotes     String?
   attachments     ClientAttachment[]
   sessions        ClientSession[]
+  appointments    Appointment[]
   createdByUserId String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
@@ -144,6 +255,11 @@ model ClientSession {
   paymentMethod    PaymentMethod
   notes            String?
   income           Income?
+  // Turno de origen (MVP3): registrar la sesión marca el turno como
+  // Atendido; borrar la sesión lo devuelve a Confirmado. Null = atención
+  // sin turno previo.
+  appointment      Appointment?           @relation(fields: [appointmentId], references: [id])
+  appointmentId    String?                @unique
   createdByUserId  String
   createdAt        DateTime               @default(now())
 
@@ -173,20 +289,23 @@ model Income {
 }
 
 model Service {
-  id              String                 @id @default(cuid())
-  name            String
-  slug            String                 @unique
-  description     String
-  durationMinutes Int?
-  price           Decimal                @db.Decimal(10, 2)
-  priceFrom       Boolean                @default(false)
-  images          String[]               @default([])
-  status          ContentStatus          @default(DRAFT)
-  order           Int                    @default(0)
-  promotions      Promotion[]            @relation("PromotionServices")
-  sessionLines    ClientSessionService[]
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  id               String                 @id @default(cuid())
+  name             String
+  slug             String                 @unique
+  description      String
+  // Obligatoria desde MVP3: el módulo de Agenda la usa para calcular la
+  // duración del turno.
+  durationMinutes  Int
+  price            Decimal                @db.Decimal(10, 2)
+  priceFrom        Boolean                @default(false)
+  images           String[]               @default([])
+  status           ContentStatus          @default(DRAFT)
+  order            Int                    @default(0)
+  promotions       Promotion[]            @relation("PromotionServices")
+  sessionLines     ClientSessionService[]
+  appointmentLines AppointmentService[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   @@index([status, order])
 }

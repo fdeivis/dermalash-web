@@ -17,6 +17,17 @@ async function main() {
     },
   });
 
+  await prisma.adminUser.upsert({
+    where: { email: "administrador@dermalash.pe" },
+    update: { role: "ADMIN" },
+    create: {
+      email: "administrador@dermalash.pe",
+      passwordHash,
+      name: "Administrador Dermalash",
+      role: "ADMIN",
+    },
+  });
+
   const esteticistaUser = await prisma.adminUser.upsert({
     where: { email: "esteticista@dermalash.pe" },
     update: { role: "ESTETICISTA" },
@@ -137,8 +148,22 @@ async function main() {
     },
   });
 
+  // MVP3: horario de lunes a viernes 09:00-18:00 para poder ver la agenda
+  // con disponibilidad sin tener que cargarla a mano en cada entorno nuevo.
+  for (let dayOfWeek = 1; dayOfWeek <= 5; dayOfWeek++) {
+    const exists = await prisma.schedule.findFirst({
+      where: { adminUserId: esteticistaUser.id, dayOfWeek },
+    });
+    if (!exists) {
+      await prisma.schedule.create({
+        data: { adminUserId: esteticistaUser.id, dayOfWeek, startMinute: 540, endMinute: 1080 },
+      });
+    }
+  }
+
   console.log("Seed completado.");
   console.log("Socio: admin@dermalash.pe / dermalash123");
+  console.log("Administrador: administrador@dermalash.pe / dermalash123");
   console.log("Esteticista: esteticista@dermalash.pe / dermalash123");
 }
 

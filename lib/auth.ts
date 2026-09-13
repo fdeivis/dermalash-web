@@ -102,3 +102,39 @@ export async function requireSocio() {
   if (session.user.role !== "SOCIO") throw new Error("Solo el Socio puede acceder a esta sección");
   return session;
 }
+
+/**
+ * MVP3: quién puede administrar la Agenda (crear/modificar/cancelar turnos,
+ * y configurar horarios). El Esteticista queda afuera a propósito: solo
+ * puede consultar su propia agenda.
+ */
+export async function requireAgendaManager() {
+  const session = await requireAdminSession();
+  if (!["SOCIO", "ADMIN", "ENCARGADO"].includes(session.user.role)) {
+    throw new Error("No tenés permiso para administrar la agenda");
+  }
+  return session;
+}
+
+/**
+ * MVP3: borrado definitivo de un turno (distinto de cancelar) es exclusivo
+ * de Administrador, como capa adicional de control sobre acciones
+ * irreversibles.
+ */
+export async function requireAdminRole() {
+  const session = await requireAdminSession();
+  if (session.user.role !== "ADMIN") throw new Error("Solo Administrador puede realizar esta acción");
+  return session;
+}
+
+/**
+ * MVP3: borrar una sesión ya registrada por error es exclusivo de Socio y
+ * Administrador (no de Encargado).
+ */
+export async function requireSocioOrAdmin() {
+  const session = await requireAdminSession();
+  if (!["SOCIO", "ADMIN"].includes(session.user.role)) {
+    throw new Error("Solo Socio o Administrador pueden realizar esta acción");
+  }
+  return session;
+}

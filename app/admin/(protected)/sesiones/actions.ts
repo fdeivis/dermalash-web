@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireAdminSession } from "@/lib/auth";
+import { requireAdminSession, requireSocioOrAdmin } from "@/lib/auth";
 import { resolveSessionPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 
@@ -16,6 +16,10 @@ const sessionSchema = z.object({
   totalAmount: z.coerce.number().nonnegative(),
   paymentMethod: z.enum(["EFECTIVO", "YAPE", "PLIN", "TARJETA", "TRANSFERENCIA", "OTRO"]),
   notes: z.string().max(2000, "Máximo 2000 caracteres").optional(),
+  // MVP3: si la sesión se origina desde un turno reservado, queda vinculada
+  // y el turno pasa a Atendido en la misma operación (sección 7.2 del
+  // diseño funcional) — no hay un botón manual separado para eso.
+  appointmentId: z.string().optional(),
 });
 
 export async function createClientSession(formData: FormData) {
@@ -28,6 +32,7 @@ export async function createClientSession(formData: FormData) {
     totalAmount: formData.get("totalAmount"),
     paymentMethod: formData.get("paymentMethod"),
     notes: formData.get("notes") || undefined,
+    appointmentId: formData.get("appointmentId") || undefined,
   });
 
   // El precio/promoción se resuelve de nuevo acá (no se confía en lo que
@@ -44,6 +49,7 @@ export async function createClientSession(formData: FormData) {
         totalAmount: data.totalAmount,
         paymentMethod: data.paymentMethod,
         notes: data.notes,
+        appointmentId: data.appointmentId,
         createdByUserId: session.user.id,
         services: {
           create: resolved.lines.map((line) => ({
@@ -66,6 +72,13 @@ export async function createClientSession(formData: FormData) {
       },
     });
 
+    if (data.appointmentId) {
+      await tx.appointment.update({
+        where: { id: data.appointmentId },
+        data: { status: "ATENDIDO" },
+      });
+    }
+
     return created;
   });
   await logAction(
@@ -78,19 +91,32 @@ export async function createClientSession(formData: FormData) {
 
   revalidatePath("/admin/sesiones");
   revalidatePath("/admin/clientes");
+  revalidatePath("/admin/agenda");
   redirect("/admin/sesiones");
 }
 
+// Borrar una sesión cargada por error es exclusivo de Socio/Administrador
+// (sección 3 del diseño funcional). Si venía de un turno, ese turno vuelve
+// a "Confirmado" en vez de quedar "Atendido" sin sesión real detrás.
 export async function deleteClientSession(id: string) {
-  const session = await requireAdminSession();
+  const session = await requireSocioOrAdmin();
 
-  await prisma.$transaction([
-    prisma.income.deleteMany({ where: { sessionId: id } }),
-    prisma.clientSessionService.deleteMany({ where: { sessionId: id } }),
-    prisma.clientSession.delete({ where: { id } }),
-  ]);
+  const existing = await prisma.clientSession.findUniqueOrThrow({ where: { id } });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.income.deleteMany({ where: { sessionId: id } });
+    await tx.clientSessionService.deleteMany({ where: { sessionId: id } });
+    await tx.clientSession.delete({ where: { id } });
+    if (existing.appointmentId) {
+      await tx.appointment.update({
+        where: { id: existing.appointmentId },
+        data: { status: "CONFIRMADO" },
+      });
+    }
+  });
   await logAction(session, "sesion.eliminar", "ClientSession", id);
 
   revalidatePath("/admin/sesiones");
   revalidatePath("/admin/clientes");
+  revalidatePath("/admin/agenda");
 }

@@ -39,7 +39,8 @@ export function ServiceForm({
             type="number"
             name="durationMinutes"
             min={1}
-            defaultValue={service?.durationMinutes ?? undefined}
+            required
+            defaultValue={service?.durationMinutes ?? 60}
             className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
           />
         </div>

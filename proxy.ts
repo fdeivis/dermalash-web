@@ -11,7 +11,16 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Todo lo bajo /admin es contenido por sesión. El Cache-Control por
+  // defecto de Next para páginas dinámicas ("no-cache, must-revalidate")
+  // no varía por Cookie, así que un proxy intermedio (ej. el forwarding de
+  // puertos de Codespaces) podría llegar a servirle a un usuario la
+  // respuesta cacheada de otro. Se fuerza acá porque `headers()` en
+  // next.config.mjs no alcanza a pisar el Cache-Control que Next asigna a
+  // las páginas dinámicas.
+  const response = NextResponse.next();
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
 
 export const config = {

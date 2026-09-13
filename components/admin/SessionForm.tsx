@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { formatPrice } from "@/lib/utils";
 
 type PersonOption = { id: string; name: string };
@@ -62,14 +63,24 @@ export function SessionForm({
   services,
   promotions,
   action,
+  defaultValues,
 }: {
   clients: PersonOption[];
   professionals: PersonOption[];
   services: ServiceOption[];
   promotions: PromotionOption[];
   action: (formData: FormData) => Promise<void>;
+  defaultValues?: {
+    clientId?: string;
+    attendedByUserId?: string;
+    serviceIds?: string[];
+    appointmentId?: string;
+    sessionDate?: string;
+  };
 }) {
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState<Record<string, boolean>>(
+    Object.fromEntries((defaultValues?.serviceIds ?? []).map((id) => [id, true]))
+  );
   const [totalTouched, setTotalTouched] = useState(false);
   const [total, setTotal] = useState(0);
 
@@ -83,11 +94,15 @@ export function SessionForm({
 
   return (
     <form action={action} className="max-w-xl space-y-5">
+      {defaultValues?.appointmentId && (
+        <input type="hidden" name="appointmentId" value={defaultValues.appointmentId} />
+      )}
       <div>
         <label className="block text-sm font-medium">Cliente</label>
         <select
           name="clientId"
           required
+          defaultValue={defaultValues?.clientId ?? ""}
           className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
         >
           <option value="">Seleccionar...</option>
@@ -104,6 +119,7 @@ export function SessionForm({
         <select
           name="attendedByUserId"
           required
+          defaultValue={defaultValues?.attendedByUserId ?? ""}
           className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
         >
           <option value="">Seleccionar...</option>
@@ -121,7 +137,7 @@ export function SessionForm({
           type="datetime-local"
           name="sessionDate"
           required
-          defaultValue={nowInputValue()}
+          defaultValue={defaultValues?.sessionDate ?? nowInputValue()}
           className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
         />
       </div>
@@ -200,7 +216,12 @@ export function SessionForm({
         />
       </div>
 
-      <Button type="submit">Registrar sesión</Button>
+      <ConfirmSubmitButton
+        type="submit"
+        confirmMessage="¿Confirmar el registro de esta sesión con estos servicios y este monto? Revisá que estén todos los servicios realizados antes de continuar."
+      >
+        Registrar sesión
+      </ConfirmSubmitButton>
     </form>
   );
 }
