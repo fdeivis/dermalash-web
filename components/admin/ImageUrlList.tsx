@@ -3,6 +3,11 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/lib/actions/upload";
+import { getImageDimensions } from "@/lib/imageDimensions";
+
+// Por debajo de este ancho la foto se ve pixelada en la grilla de
+// tratamientos y en la ficha del servicio (que la muestran a buen tamaño).
+const MIN_RECOMMENDED_WIDTH = 1200;
 
 export function ImageUrlList({
   name,
@@ -16,6 +21,7 @@ export function ImageUrlList({
   const [urls, setUrls] = useState<string[]>(initial.length > 0 ? initial : [""]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -24,6 +30,19 @@ export function ImageUrlList({
 
     setUploading(true);
     setError(null);
+    setWarning(null);
+
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (width < MIN_RECOMMENDED_WIDTH) {
+        setWarning(
+          `Esta imagen es de ${width}×${height}px, más chica de lo recomendado (mínimo ${MIN_RECOMMENDED_WIDTH}px de ancho). Puede verse pixelada en la web.`
+        );
+      }
+    } catch {
+      // Si no se pudo leer el tamaño, seguimos con la subida igual.
+    }
+
     const formData = new FormData();
     formData.set("file", file);
     const result = await uploadImageAction(folder, formData);
@@ -83,8 +102,10 @@ export function ImageUrlList({
         </label>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
+      {warning && <p className="text-xs text-amber-600">{warning}</p>}
       <p className="text-xs text-brand-muted">
-        Subí una imagen desde tu computadora o pegá la URL de una imagen ya publicada.
+        Subí una imagen desde tu computadora o pegá la URL de una imagen ya publicada. Para que
+        no se vea pixelada, subí fotos de al menos {MIN_RECOMMENDED_WIDTH}px de ancho.
       </p>
     </div>
   );

@@ -3,6 +3,11 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/lib/actions/upload";
+import { getImageDimensions } from "@/lib/imageDimensions";
+
+// El carrusel se muestra a todo el ancho de la pantalla: por debajo de este
+// ancho la foto se ve pixelada en monitores grandes.
+const MIN_RECOMMENDED_WIDTH = 1600;
 
 export function SingleImageField({
   name,
@@ -16,6 +21,7 @@ export function SingleImageField({
   const [url, setUrl] = useState(initial ?? "");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -24,6 +30,19 @@ export function SingleImageField({
 
     setUploading(true);
     setError(null);
+    setWarning(null);
+
+    try {
+      const { width, height } = await getImageDimensions(file);
+      if (width < MIN_RECOMMENDED_WIDTH) {
+        setWarning(
+          `Esta imagen es de ${width}×${height}px, más chica de lo recomendado (mínimo ${MIN_RECOMMENDED_WIDTH}px de ancho). Se puede ver pixelada en el carrusel.`
+        );
+      }
+    } catch {
+      // Si no se pudo leer el tamaño, seguimos con la subida igual.
+    }
+
     const formData = new FormData();
     formData.set("file", file);
     const result = await uploadImageAction(folder, formData);
@@ -67,6 +86,11 @@ export function SingleImageField({
         />
       </label>
       {error && <p className="text-xs text-red-600">{error}</p>}
+      {warning && <p className="text-xs text-amber-600">{warning}</p>}
+      <p className="text-xs text-brand-muted">
+        Para que no se vea pixelada en el carrusel, subí una foto horizontal de al menos{" "}
+        {MIN_RECOMMENDED_WIDTH}px de ancho.
+      </p>
     </div>
   );
 }
