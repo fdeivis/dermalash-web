@@ -14,31 +14,44 @@ const LINKS = [
   { href: "/admin/promociones", label: "Promociones" },
   { href: "/admin/novedades", label: "Novedades" },
   { href: "/admin/clientes", label: "Clientes" },
-  { href: "/admin/empleados", label: "Empleados" },
   { href: "/admin/sesiones", label: "Sesiones" },
   // Visible para todos los roles: Esteticista ve su propia agenda de solo
   // lectura; el resto administra (ver /admin/agenda).
   { href: "/admin/agenda", label: "Agenda" },
 ];
 
-export function AdminNav({ alertCount = 0 }: { alertCount?: number }) {
+export function AdminNav({
+  alertCount = 0,
+  canViewEmployees = false,
+  canManageAgenda = false,
+  canManagePermissions = false,
+}: {
+  alertCount?: number;
+  canViewEmployees?: boolean;
+  canManageAgenda?: boolean;
+  canManagePermissions?: boolean;
+}) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
-  const canManageAgenda =
-    session?.user?.role && ["SOCIO", "ADMIN", "ENCARGADO"].includes(session.user.role);
 
   // Con muchas secciones ya no entran en una sola fila (esto se notaba sobre
   // todo en mobile, donde el header se desbordaba en vez de mostrar un menú):
   // el resto del panel arma esta lista una sola vez y la reusa en la barra
-  // de escritorio y en el menú desplegable de mobile.
+  // de escritorio y en el menú desplegable de mobile. La visibilidad viene
+  // calculada en el layout (server) a partir de los permisos reales del rol,
+  // no de un array de roles hardcodeado acá.
   const links = [
     ...LINKS,
+    ...(canViewEmployees ? [{ href: "/admin/empleados", label: "Empleados" }] : []),
     ...(canManageAgenda
       ? [{ href: "/admin/alertas", label: `Alertas${alertCount > 0 ? ` (${alertCount})` : ""}` }]
       : []),
-    ...(session?.user?.role && ["SOCIO", "ADMIN"].includes(session.user.role)
-      ? [{ href: "/admin/logs", label: "Logs" }]
+    ...(canManagePermissions
+      ? [
+          { href: "/admin/permisos", label: "Permisos" },
+          { href: "/admin/logs", label: "Logs" },
+        ]
       : []),
   ];
 

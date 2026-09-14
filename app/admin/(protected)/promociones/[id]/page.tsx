@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PromotionForm } from "@/components/admin/PromotionForm";
+import { requirePagePermission } from "@/lib/auth";
 import { updatePromotion } from "../actions";
 
 export default async function EditarPromocionPage({
@@ -8,6 +9,7 @@ export default async function EditarPromocionPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePagePermission("promociones.gestionar");
   const { id } = await params;
   const promotion = await prisma.promotion.findUnique({ where: { id }, include: { services: true } });
   if (!promotion) notFound();

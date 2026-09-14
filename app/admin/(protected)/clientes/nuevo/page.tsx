@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { ClientForm } from "@/components/admin/ClientForm";
+import { requirePagePermission } from "@/lib/auth";
 import { createClient } from "../actions";
 
-export default function NuevoClientePage() {
+export default async function NuevoClientePage() {
+  await requirePagePermission("clientes.gestionar");
   return (
     <div>
       <h1 className="font-display text-2xl">Nuevo cliente</h1>

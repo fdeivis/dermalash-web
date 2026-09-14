@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireAgendaManager, requireAdminRole } from "@/lib/auth";
+import { requireAgendaManager, requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 import { createAlert } from "@/lib/alerts";
 import { hasOverlap, isWithinSchedule, getTimeOffForDay, fromPeruParts, peruParts } from "@/lib/scheduling";
@@ -230,12 +230,13 @@ export async function confirmAppointment(id: string) {
 }
 
 /**
- * Borrado definitivo (distinto de cancelar): exclusivo de Administrador.
- * appointmentId queda como texto plano en la alerta y en el log porque el
- * registro deja de existir.
+ * Borrado definitivo (distinto de cancelar): requiere el permiso
+ * "agenda.eliminar" (administrable desde /admin/permisos). appointmentId
+ * queda como texto plano en la alerta y en el log porque el registro deja
+ * de existir.
  */
 export async function deleteAppointment(id: string) {
-  const session = await requireAdminRole();
+  const session = await requirePermission("agenda.eliminar");
   const existing = await prisma.appointment.findUniqueOrThrow({
     where: { id },
     include: { client: true },

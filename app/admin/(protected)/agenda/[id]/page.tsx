@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireAgendaManager } from "@/lib/auth";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { getSchedulableProfessionals, professionalLabel, peruParts } from "@/lib/scheduling";
 import { generateTimeOptions } from "@/lib/time";
 
@@ -48,7 +49,7 @@ export default async function TurnoDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  const session = await requireAgendaManager();
+  const session = await requirePagePermission("agenda.gestionar");
   const { id } = await params;
   const { error } = await searchParams;
 
@@ -67,7 +68,7 @@ export default async function TurnoDetailPage({
 
   const isActive = appointment.status === "RESERVADO" || appointment.status === "CONFIRMADO";
   const canCancel = isActive && !appointment.session;
-  const isAdmin = session.user.role === "ADMIN";
+  const canDeleteAppointment = await hasPermission(session.user.role, "agenda.eliminar");
 
   return (
     <div className="max-w-xl">
@@ -207,7 +208,7 @@ export default async function TurnoDetailPage({
         </section>
       )}
 
-      {isAdmin && (
+      {canDeleteAppointment && (
         <section className="mt-10 border-t border-brand-border pt-6">
           <h2 className="font-display text-lg text-red-700">Zona de administrador</h2>
           <form action={deleteAppointment.bind(null, appointment.id)} className="mt-3">

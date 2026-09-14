@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireAdminSession } from "@/lib/auth";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import {
   getDayAgenda,
   findTimeOff,
@@ -47,8 +48,8 @@ export default async function AgendaPage({
   searchParams: Promise<{ date?: string; professionalId?: string }>;
 }) {
   const { date: dateParam, professionalId: professionalFilter } = await searchParams;
-  const session = await requireAdminSession();
-  const canManage = ["SOCIO", "ADMIN", "ENCARGADO"].includes(session.user.role);
+  const session = await requirePagePermission("agenda.ver");
+  const canManage = await hasPermission(session.user.role, "agenda.gestionar");
 
   const day = dateParam ? parseDateKey(dateParam) : peruToday();
   const dateKey = toDateKey(day);

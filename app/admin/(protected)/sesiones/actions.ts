@@ -4,7 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireAdminSession, requireSocioOrAdmin } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { resolveSessionPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 import { parseDateTimeLocal } from "@/lib/scheduling";
@@ -27,7 +28,7 @@ const sessionSchema = z.object({
 });
 
 export async function createClientSession(formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("sesiones.crear");
   const data = sessionSchema.parse({
     clientId: formData.get("clientId"),
     attendedByUserId: formData.get("attendedByUserId"),
@@ -38,6 +39,21 @@ export async function createClientSession(formData: FormData) {
     notes: formData.get("notes") || undefined,
     appointmentId: formData.get("appointmentId") || undefined,
   });
+
+  // Quien no gestiona la agenda (hoy: Esteticista) solo puede registrar la
+  // sesión de un turno propio, aunque conozca el id de otro (sección 3 del
+  // diseño funcional).
+  if (!(await hasPermission(session.user.role, "agenda.gestionar"))) {
+    if (!data.appointmentId) throw new Error("No tenés permiso para registrar esta sesión");
+    const appointment = await prisma.appointment.findUniqueOrThrow({
+      where: { id: data.appointmentId },
+      select: { professionalId: true },
+    });
+    if (appointment.professionalId !== session.user.id) {
+      throw new Error("Solo podés registrar sesiones de tus propios turnos");
+    }
+  }
+
   const sessionDate = parseDateTimeLocal(data.sessionDate);
 
   // El precio/promoción se resuelve de nuevo acá (no se confía en lo que
@@ -100,11 +116,12 @@ export async function createClientSession(formData: FormData) {
   redirect("/admin/sesiones");
 }
 
-// Borrar una sesión cargada por error es exclusivo de Socio/Administrador
-// (sección 3 del diseño funcional). Si venía de un turno, ese turno vuelve
-// a "Confirmado" en vez de quedar "Atendido" sin sesión real detrás.
+// Borrar una sesión cargada por error requiere el permiso "sesiones.eliminar"
+// (administrable desde /admin/permisos; la Esteticista no lo tiene por
+// defecto — sección 3 del diseño funcional). Si venía de un turno, ese turno
+// vuelve a "Confirmado" en vez de quedar "Atendido" sin sesión real detrás.
 export async function deleteClientSession(id: string) {
-  const session = await requireSocioOrAdmin();
+  const session = await requirePermission("sesiones.eliminar");
 
   const existing = await prisma.clientSession.findUniqueOrThrow({ where: { id } });
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ClientForm } from "@/components/admin/ClientForm";
+import { requirePagePermission } from "@/lib/auth";
 import { updateClient } from "../../actions";
 
 export default async function EditarClientePage({
@@ -8,6 +9,7 @@ export default async function EditarClientePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePagePermission("clientes.gestionar");
   const { id } = await params;
   const client = await prisma.client.findUnique({ where: { id } });
   if (!client) notFound();

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { professionalLabel, formatDateTime12 } from "@/lib/scheduling";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteClientSession } from "./actions";
@@ -16,6 +18,8 @@ const PAYMENT_LABEL: Record<string, string> = {
 };
 
 export default async function AdminSesionesPage() {
+  const viewer = await requirePagePermission("sesiones.ver");
+  const canDelete = await hasPermission(viewer.user.role, "sesiones.eliminar");
   const sessions = await prisma.clientSession.findMany({
     orderBy: { sessionDate: "desc" },
     include: { client: true, attendedBy: true, services: { include: { service: true } } },
@@ -44,7 +48,7 @@ export default async function AdminSesionesPage() {
               <th className="px-4 py-3">Profesional</th>
               <th className="px-4 py-3">Medio de pago</th>
               <th className="px-4 py-3">Total</th>
-              <th className="px-4 py-3">Acciones</th>
+              {canDelete && <th className="px-4 py-3">Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -64,23 +68,25 @@ export default async function AdminSesionesPage() {
                 <td className="px-4 py-3">{professionalLabel(session.attendedBy)}</td>
                 <td className="px-4 py-3">{PAYMENT_LABEL[session.paymentMethod]}</td>
                 <td className="px-4 py-3">{formatPrice(session.totalAmount.toString())}</td>
-                <td className="px-4 py-3">
-                  <form action={deleteClientSession.bind(null, session.id)}>
-                    <ConfirmSubmitButton
-                      type="submit"
-                      variant="danger"
-                      size="sm"
-                      confirmMessage="¿Eliminar esta sesión? También se elimina el ingreso asociado. No se puede deshacer."
-                    >
-                      Eliminar
-                    </ConfirmSubmitButton>
-                  </form>
-                </td>
+                {canDelete && (
+                  <td className="px-4 py-3">
+                    <form action={deleteClientSession.bind(null, session.id)}>
+                      <ConfirmSubmitButton
+                        type="submit"
+                        variant="danger"
+                        size="sm"
+                        confirmMessage="¿Eliminar esta sesión? También se elimina el ingreso asociado. No se puede deshacer."
+                      >
+                        Eliminar
+                      </ConfirmSubmitButton>
+                    </form>
+                  </td>
+                )}
               </tr>
             ))}
             {sessions.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-brand-muted">
+                <td colSpan={canDelete ? 7 : 6} className="px-4 py-8 text-center text-brand-muted">
                   Todavía no hay sesiones registradas.
                 </td>
               </tr>

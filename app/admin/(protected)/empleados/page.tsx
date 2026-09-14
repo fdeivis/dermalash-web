@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
@@ -16,6 +18,8 @@ export default async function AdminEmpleadosPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  const session = await requirePagePermission("empleados.ver");
+  const canManage = await hasPermission(session.user.role, "empleados.gestionar");
   const { error } = await searchParams;
   const employees = await prisma.employee.findMany({
     include: { adminUser: true },
@@ -26,9 +30,11 @@ export default async function AdminEmpleadosPage({
     <div>
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl">Empleados</h1>
-        <Link href="/admin/empleados/nuevo">
-          <Button>Nuevo empleado</Button>
-        </Link>
+        {canManage && (
+          <Link href="/admin/empleados/nuevo">
+            <Button>Nuevo empleado</Button>
+          </Link>
+        )}
       </div>
 
       {error === "tiene-sesiones" && (
@@ -69,21 +75,25 @@ export default async function AdminEmpleadosPage({
                         Ver
                       </Button>
                     </Link>
-                    <form action={setEmployeeActive.bind(null, employee.id, !employee.active)}>
-                      <Button type="submit" variant="outline" size="sm">
-                        {employee.active ? "Desactivar" : "Activar"}
-                      </Button>
-                    </form>
-                    <form action={deleteEmployee.bind(null, employee.id)}>
-                      <ConfirmSubmitButton
-                        type="submit"
-                        variant="danger"
-                        size="sm"
-                        confirmMessage={`¿Eliminar a "${employee.firstName} ${employee.lastName}"? Esta acción no se puede deshacer.`}
-                      >
-                        Eliminar
-                      </ConfirmSubmitButton>
-                    </form>
+                    {canManage && (
+                      <>
+                        <form action={setEmployeeActive.bind(null, employee.id, !employee.active)}>
+                          <Button type="submit" variant="outline" size="sm">
+                            {employee.active ? "Desactivar" : "Activar"}
+                          </Button>
+                        </form>
+                        <form action={deleteEmployee.bind(null, employee.id)}>
+                          <ConfirmSubmitButton
+                            type="submit"
+                            variant="danger"
+                            size="sm"
+                            confirmMessage={`¿Eliminar a "${employee.firstName} ${employee.lastName}"? Esta acción no se puede deshacer.`}
+                          >
+                            Eliminar
+                          </ConfirmSubmitButton>
+                        </form>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

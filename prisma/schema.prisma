@@ -34,6 +34,22 @@ enum ContentStatus {
   PUBLISHED
 }
 
+// Permisos por rol, administrables desde /admin/permisos (Socio/Admin).
+// Admin nunca tiene restricciones (no genera filas acá, se resuelve en
+// código): esta tabla solo cubre Socio/Encargado/Esteticista, para poder
+// prender/apagar accesos sin tocar código. `permission` es una clave de
+// texto libre (ej. "empleados.ver") definida en lib/permissions.ts.
+model RolePermission {
+  id         String   @id @default(cuid())
+  role       Role
+  permission String
+  allowed    Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([role, permission])
+  @@index([role])
+}
+
 enum Role {
   SOCIO
   ADMIN

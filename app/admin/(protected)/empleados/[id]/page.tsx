@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { addSalaryPeriod, setEmployeeActive } from "../actions";
@@ -17,6 +19,8 @@ export default async function VerEmpleadoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await requirePagePermission("empleados.ver");
+  const canManage = await hasPermission(session.user.role, "empleados.gestionar");
   const { id } = await params;
   const employee = await prisma.employee.findUnique({
     where: { id },
@@ -30,18 +34,20 @@ export default async function VerEmpleadoPage({
         <h1 className="font-display text-2xl">
           {employee.firstName} {employee.lastName}
         </h1>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/empleados/${employee.id}/editar`}>
-            <Button variant="outline" size="sm">
-              Editar
-            </Button>
-          </Link>
-          <form action={setEmployeeActive.bind(null, employee.id, !employee.active)}>
-            <Button type="submit" variant="outline" size="sm">
-              {employee.active ? "Desactivar" : "Activar"}
-            </Button>
-          </form>
-        </div>
+        {canManage && (
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/empleados/${employee.id}/editar`}>
+              <Button variant="outline" size="sm">
+                Editar
+              </Button>
+            </Link>
+            <form action={setEmployeeActive.bind(null, employee.id, !employee.active)}>
+              <Button type="submit" variant="outline" size="sm">
+                {employee.active ? "Desactivar" : "Activar"}
+              </Button>
+            </form>
+          </div>
+        )}
       </div>
 
       <dl className="mt-6 max-w-xl space-y-3 rounded-brand border border-brand-border bg-brand-surface p-5 text-sm">
@@ -102,6 +108,7 @@ export default async function VerEmpleadoPage({
           Se conserva el historial completo; agregar un período no borra los anteriores.
         </p>
 
+        {canManage && (
         <form
           action={addSalaryPeriod.bind(null, employee.id)}
           className="mt-4 grid grid-cols-2 gap-4 rounded-brand border border-brand-border bg-brand-surface p-4"
@@ -147,6 +154,7 @@ export default async function VerEmpleadoPage({
             </Button>
           </div>
         </form>
+        )}
 
         <div className="mt-4 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
           <table className="w-full text-left text-sm">

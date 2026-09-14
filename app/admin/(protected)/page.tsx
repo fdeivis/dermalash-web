@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { professionalLabel, formatDateTime12 } from "@/lib/scheduling";
 
 // Los contadores deben reflejar siempre el estado actual: las acciones de
@@ -15,16 +16,33 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default async function AdminDashboardPage() {
   const session = await requireAdminSession();
-  const canManageAgenda = ["SOCIO", "ADMIN", "ENCARGADO"].includes(session.user.role);
+  const role = session.user.role;
+  const [
+    canManageAgenda,
+    canViewServicios,
+    canViewPromociones,
+    canViewNovedades,
+    canViewClientes,
+    canViewEmpleados,
+    canViewSesiones,
+  ] = await Promise.all([
+    hasPermission(role, "agenda.gestionar"),
+    hasPermission(role, "servicios.ver"),
+    hasPermission(role, "promociones.ver"),
+    hasPermission(role, "novedades.ver"),
+    hasPermission(role, "clientes.ver"),
+    hasPermission(role, "empleados.ver"),
+    hasPermission(role, "sesiones.ver"),
+  ]);
 
   const [services, promotions, posts, clients, employees, sessions, upcomingAppointments] =
     await Promise.all([
-      prisma.service.count(),
-      prisma.promotion.count(),
-      prisma.post.count(),
-      prisma.client.count(),
-      prisma.employee.count(),
-      prisma.clientSession.count(),
+      canViewServicios ? prisma.service.count() : null,
+      canViewPromociones ? prisma.promotion.count() : null,
+      canViewNovedades ? prisma.post.count() : null,
+      canViewClientes ? prisma.client.count() : null,
+      canViewEmpleados ? prisma.employee.count() : null,
+      canViewSesiones ? prisma.clientSession.count() : null,
       prisma.appointment.findMany({
         where: {
           status: { in: ["RESERVADO", "CONFIRMADO"] },
@@ -39,13 +57,13 @@ export default async function AdminDashboardPage() {
     ]);
 
   const cards = [
-    { label: "Servicios", count: services, href: "/admin/servicios" },
-    { label: "Promociones", count: promotions, href: "/admin/promociones" },
-    { label: "Novedades", count: posts, href: "/admin/novedades" },
-    { label: "Clientes", count: clients, href: "/admin/clientes" },
-    { label: "Empleados", count: employees, href: "/admin/empleados" },
-    { label: "Sesiones", count: sessions, href: "/admin/sesiones" },
-  ];
+    canViewServicios && { label: "Servicios", count: services, href: "/admin/servicios" },
+    canViewPromociones && { label: "Promociones", count: promotions, href: "/admin/promociones" },
+    canViewNovedades && { label: "Novedades", count: posts, href: "/admin/novedades" },
+    canViewClientes && { label: "Clientes", count: clients, href: "/admin/clientes" },
+    canViewEmpleados && { label: "Empleados", count: employees, href: "/admin/empleados" },
+    canViewSesiones && { label: "Sesiones", count: sessions, href: "/admin/sesiones" },
+  ].filter(Boolean) as { label: string; count: number | null; href: string }[];
 
   return (
     <div>

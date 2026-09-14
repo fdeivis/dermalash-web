@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { professionalLabel, peruParts, peruToday, endOfDay } from "@/lib/scheduling";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { SessionForm } from "@/components/admin/SessionForm";
 import { createClientSession } from "../actions";
 
@@ -21,6 +23,7 @@ export default async function NuevaSesionPage({
 }: {
   searchParams: Promise<{ appointmentId?: string }>;
 }) {
+  const session = await requirePagePermission("sesiones.crear");
   const { appointmentId } = await searchParams;
   // Toda sesión nueva se registra a partir de un turno (así se valida
   // disponibilidad/solapamiento una sola vez, en la Agenda, y no queda un
@@ -32,6 +35,13 @@ export default async function NuevaSesionPage({
     include: { services: { include: { service: true } }, client: true, professional: true },
   });
   if (!appointment) redirect("/admin/agenda");
+
+  // Quien no gestiona la agenda (hoy: Esteticista) solo puede registrar la
+  // sesión de un turno propio (sección 3 del diseño funcional).
+  const canManageAgenda = await hasPermission(session.user.role, "agenda.gestionar");
+  if (!canManageAgenda && appointment.professionalId !== session.user.id) {
+    redirect("/admin/agenda");
+  }
 
   // "Hoy" en el calendario de Perú, no en el huso del servidor: una
   // promoción cargada hasta "hoy" no debería desaparecer 5 horas antes de

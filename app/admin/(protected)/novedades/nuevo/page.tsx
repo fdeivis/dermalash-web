@@ -1,7 +1,9 @@
 import { PostForm } from "@/components/admin/PostForm";
+import { requirePagePermission } from "@/lib/auth";
 import { createPost } from "../actions";
 
-export default function NuevaNovedadPage() {
+export default async function NuevaNovedadPage() {
+  await requirePagePermission("novedades.gestionar");
   return (
     <div>
       <h1 className="font-display text-2xl">Nueva novedad</h1>

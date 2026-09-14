@@ -50,6 +50,30 @@ async function main() {
     },
   });
 
+  // Para poder probar los permisos de Encargado (acceso a todo salvo
+  // Empleados, ver /admin/permisos).
+  const encargadoUser = await prisma.adminUser.upsert({
+    where: { email: "encargado@dermalash.pe" },
+    update: { role: "ENCARGADO" },
+    create: {
+      email: "encargado@dermalash.pe",
+      passwordHash,
+      name: "Luis Encargado",
+      role: "ENCARGADO",
+    },
+  });
+
+  await prisma.employee.upsert({
+    where: { adminUserId: encargadoUser.id },
+    update: {},
+    create: {
+      adminUserId: encargadoUser.id,
+      firstName: "Luis",
+      lastName: "Encargado",
+      phone: "51999999996",
+    },
+  });
+
   await prisma.client.upsert({
     where: { id: "seed-client-demo" },
     update: {},
@@ -164,6 +188,7 @@ async function main() {
   console.log("Seed completado.");
   console.log("Socio: admin@dermalash.pe / dermalash123");
   console.log("Administrador: administrador@dermalash.pe / dermalash123");
+  console.log("Encargado: encargado@dermalash.pe / dermalash123");
   console.log("Esteticista: esteticista@dermalash.pe / dermalash123");
 }
 

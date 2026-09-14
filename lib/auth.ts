@@ -1,9 +1,11 @@
 import type { AuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
+import { hasPermission, type PermissionKey } from "@/lib/permissions";
 
 // Hash bcrypt de un valor arbitrario, nunca alcanzable con ninguna
 // contraseña real: solo existe para que bcrypt.compare tarde lo mismo
@@ -94,42 +96,45 @@ export async function requireAdminSession() {
 }
 
 /**
- * Primer punto real de restricción por rol (el resto del panel todavía no
- * las aplica a propósito): la vista de logs y su purga son solo para Socio.
+ * Guard genérico para Server Actions: valida el permiso indicado contra la
+ * tabla RolePermission (administrable desde /admin/permisos). Admin siempre
+ * pasa (ver lib/permissions.ts).
  */
-export async function requireSocio() {
+export async function requirePermission(key: PermissionKey) {
   const session = await requireAdminSession();
-  if (session.user.role !== "SOCIO") throw new Error("Solo el Socio puede acceder a esta sección");
-  return session;
-}
-
-/**
- * MVP3: quién puede administrar la Agenda (crear/modificar/cancelar turnos,
- * y configurar horarios). El Esteticista queda afuera a propósito: solo
- * puede consultar su propia agenda.
- */
-export async function requireAgendaManager() {
-  const session = await requireAdminSession();
-  if (!["SOCIO", "ADMIN", "ENCARGADO"].includes(session.user.role)) {
-    throw new Error("No tenés permiso para administrar la agenda");
+  if (!(await hasPermission(session.user.role, key))) {
+    throw new Error("No tenés permiso para realizar esta acción");
   }
   return session;
 }
 
 /**
- * MVP3: borrado definitivo de un turno (distinto de cancelar) es exclusivo
- * de Administrador, como capa adicional de control sobre acciones
- * irreversibles.
+ * Guard para páginas (Server Components): en vez de lanzar un error,
+ * redirige a login si no hay sesión, o a /admin si la sesión no tiene el
+ * permiso indicado.
  */
-export async function requireAdminRole() {
-  const session = await requireAdminSession();
-  if (session.user.role !== "ADMIN") throw new Error("Solo Administrador puede realizar esta acción");
+export async function requirePagePermission(key: PermissionKey) {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/admin/login");
+  if (!(await hasPermission(session.user.role, key))) redirect("/admin");
   return session;
 }
 
 /**
- * MVP3: borrar una sesión ya registrada por error es exclusivo de Socio y
- * Administrador (no de Encargado).
+ * MVP3: quién puede administrar la Agenda (crear/modificar/cancelar turnos,
+ * y configurar horarios). El Esteticista queda afuera por defecto (permiso
+ * "agenda.gestionar" en /admin/permisos): solo puede consultar su propia
+ * agenda.
+ */
+export async function requireAgendaManager() {
+  return requirePermission("agenda.gestionar");
+}
+
+/**
+ * Ver y purgar el log de auditoría es exclusivo de Socio/Administrador, y a
+ * propósito NO es configurable desde /admin/permisos: esa misma pantalla de
+ * permisos, y el log que audita quién cambió qué, tienen que quedar fuera
+ * del alcance de lo que un Encargado pueda tocar.
  */
 export async function requireSocioOrAdmin() {
   const session = await requireAdminSession();

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
-import { requireAdminSession } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 
 const promotionSchema = z.object({
@@ -33,7 +33,7 @@ function parseFormData(formData: FormData) {
 }
 
 export async function createPromotion(formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("promociones.gestionar");
   const { serviceIds, ...data } = parseFormData(formData);
   const slug = await uniqueSlug(
     data.name,
@@ -58,7 +58,7 @@ export async function createPromotion(formData: FormData) {
 }
 
 export async function updatePromotion(id: string, formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("promociones.gestionar");
   const { serviceIds, ...data } = parseFormData(formData);
 
   await prisma.promotion.update({
@@ -74,7 +74,7 @@ export async function updatePromotion(id: string, formData: FormData) {
 }
 
 export async function deletePromotion(id: string) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("promociones.gestionar");
   const deleted = await prisma.promotion.delete({ where: { id } });
   await logAction(session, "promocion.eliminar", "Promotion", id, deleted.name);
   revalidatePath("/admin/promociones");
@@ -83,7 +83,7 @@ export async function deletePromotion(id: string) {
 }
 
 export async function setPromotionStatus(id: string, status: "DRAFT" | "PUBLISHED") {
-  const session = await requireAdminSession();
+  const session = await requirePermission("promociones.gestionar");
   const promotion = await prisma.promotion.update({ where: { id }, data: { status } });
   await logAction(
     session,
@@ -98,7 +98,7 @@ export async function setPromotionStatus(id: string, status: "DRAFT" | "PUBLISHE
 }
 
 export async function movePromotion(id: string, direction: "up" | "down") {
-  await requireAdminSession();
+  await requirePermission("promociones.gestionar");
   const promotions = await prisma.promotion.findMany({ orderBy: { order: "asc" } });
   const index = promotions.findIndex((p) => p.id === id);
   const swapWith = direction === "up" ? index - 1 : index + 1;

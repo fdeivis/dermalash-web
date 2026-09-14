@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
-import { requireAdminSession } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 
 const serviceSchema = z.object({
@@ -30,7 +30,7 @@ function parseFormData(formData: FormData) {
 }
 
 export async function createService(formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("servicios.gestionar");
   const data = parseFormData(formData);
   const slug = await uniqueSlug(
     data.name,
@@ -50,7 +50,7 @@ export async function createService(formData: FormData) {
 }
 
 export async function updateService(id: string, formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("servicios.gestionar");
   const data = parseFormData(formData);
   await prisma.service.update({ where: { id }, data });
   await logAction(session, "servicio.editar", "Service", id, data.name);
@@ -62,7 +62,7 @@ export async function updateService(id: string, formData: FormData) {
 }
 
 export async function deleteService(id: string) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("servicios.gestionar");
   let deletedName: string | undefined;
   try {
     const deleted = await prisma.service.delete({ where: { id } });
@@ -84,7 +84,7 @@ export async function deleteService(id: string) {
 }
 
 export async function setServiceStatus(id: string, status: "DRAFT" | "PUBLISHED") {
-  const session = await requireAdminSession();
+  const session = await requirePermission("servicios.gestionar");
   const service = await prisma.service.update({ where: { id }, data: { status } });
   await logAction(
     session,
@@ -99,7 +99,7 @@ export async function setServiceStatus(id: string, status: "DRAFT" | "PUBLISHED"
 }
 
 export async function moveService(id: string, direction: "up" | "down") {
-  await requireAdminSession();
+  await requirePermission("servicios.gestionar");
   const services = await prisma.service.findMany({ orderBy: { order: "asc" } });
   const index = services.findIndex((s) => s.id === id);
   const swapWith = direction === "up" ? index - 1 : index + 1;

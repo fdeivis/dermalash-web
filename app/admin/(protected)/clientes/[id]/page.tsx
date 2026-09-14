@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getSignedUrl } from "@/lib/supabase";
 import { formatPrice } from "@/lib/utils";
 import { formatDateTime12 } from "@/lib/scheduling";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ClientAttachmentUploader } from "@/components/admin/ClientAttachmentUploader";
 
@@ -24,6 +26,8 @@ export default async function VerClientePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await requirePagePermission("clientes.ver");
+  const canManage = await hasPermission(session.user.role, "clientes.gestionar");
   const { id } = await params;
   const client = await prisma.client.findUnique({
     where: { id },
@@ -50,11 +54,13 @@ export default async function VerClientePage({
         <h1 className="font-display text-2xl">
           {client.firstName} {client.lastName}
         </h1>
-        <Link href={`/admin/clientes/${client.id}/editar`}>
-          <Button variant="outline" size="sm">
-            Editar
-          </Button>
-        </Link>
+        {canManage && (
+          <Link href={`/admin/clientes/${client.id}/editar`}>
+            <Button variant="outline" size="sm">
+              Editar
+            </Button>
+          </Link>
+        )}
       </div>
 
       <dl className="mt-6 max-w-xl space-y-3 rounded-brand border border-brand-border bg-brand-surface p-5 text-sm">
@@ -101,9 +107,11 @@ export default async function VerClientePage({
         <p className="mt-1 text-sm text-brand-muted">
           Archivos privados: solo accesibles desde acá, mediante enlaces temporales.
         </p>
-        <div className="mt-4">
-          <ClientAttachmentUploader clientId={client.id} />
-        </div>
+        {canManage && (
+          <div className="mt-4">
+            <ClientAttachmentUploader clientId={client.id} />
+          </div>
+        )}
         <ul className="mt-4 space-y-2 text-sm">
           {attachmentsWithUrl.map((attachment) => (
             <li key={attachment.id} className="flex items-center justify-between">

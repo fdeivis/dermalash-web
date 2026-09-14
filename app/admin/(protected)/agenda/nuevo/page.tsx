@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireAgendaManager } from "@/lib/auth";
+import { requirePagePermission } from "@/lib/auth";
 import { getSchedulableProfessionals, professionalLabel } from "@/lib/scheduling";
 import { AppointmentForm } from "@/components/admin/AppointmentForm";
 import { createAppointment } from "../actions";
@@ -26,7 +26,7 @@ export default async function NuevoTurnoPage({
     serviceIds?: string | string[];
   }>;
 }) {
-  await requireAgendaManager();
+  await requirePagePermission("agenda.gestionar");
   const { error, professionalId, date, startTime, clientId, serviceIds } = await searchParams;
   const serviceIdList = serviceIds ? (Array.isArray(serviceIds) ? serviceIds : [serviceIds]) : undefined;
 

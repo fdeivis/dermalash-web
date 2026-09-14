@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { EmployeeForm } from "@/components/admin/EmployeeForm";
+import { requirePagePermission } from "@/lib/auth";
 import { updateEmployee } from "../../actions";
 
 export default async function EditarEmpleadoPage({
@@ -8,6 +9,7 @@ export default async function EditarEmpleadoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePagePermission("empleados.gestionar");
   const { id } = await params;
   const employee = await prisma.employee.findUnique({
     where: { id },

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireAdminSession } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { uploadPrivateFile, deletePrivateFile } from "@/lib/supabase";
 import { logAction } from "@/lib/audit";
 
@@ -40,7 +40,7 @@ function parseFormData(formData: FormData) {
 }
 
 export async function createClient(formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("clientes.gestionar");
   const data = parseFormData(formData);
 
   const client = await prisma.client.create({
@@ -53,7 +53,7 @@ export async function createClient(formData: FormData) {
 }
 
 export async function updateClient(id: string, formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("clientes.gestionar");
   const data = parseFormData(formData);
 
   await prisma.client.update({ where: { id }, data });
@@ -65,7 +65,7 @@ export async function updateClient(id: string, formData: FormData) {
 }
 
 export async function deleteClient(id: string) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("clientes.gestionar");
 
   const sessionCount = await prisma.clientSession.count({ where: { clientId: id } });
   if (sessionCount > 0) {
@@ -95,7 +95,7 @@ export async function addClientAttachment(
   kind: string,
   formData: FormData
 ): Promise<{ error?: string }> {
-  const session = await requireAdminSession();
+  const session = await requirePermission("clientes.gestionar");
   const parsedKind = attachmentKindSchema.parse(kind);
 
   const file = formData.get("file");

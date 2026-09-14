@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requirePagePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteClient } from "./actions";
@@ -9,6 +11,8 @@ export default async function AdminClientesPage({
 }: {
   searchParams: Promise<{ q?: string; error?: string }>;
 }) {
+  const session = await requirePagePermission("clientes.ver");
+  const canManage = await hasPermission(session.user.role, "clientes.gestionar");
   const { q, error } = await searchParams;
 
   const clients = await prisma.client.findMany({
@@ -30,9 +34,11 @@ export default async function AdminClientesPage({
     <div>
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl">Clientes</h1>
-        <Link href="/admin/clientes/nuevo">
-          <Button>Nuevo cliente</Button>
-        </Link>
+        {canManage && (
+          <Link href="/admin/clientes/nuevo">
+            <Button>Nuevo cliente</Button>
+          </Link>
+        )}
       </div>
 
       {error === "tiene-sesiones" && (
@@ -82,16 +88,18 @@ export default async function AdminClientesPage({
                         Ver ficha
                       </Button>
                     </Link>
-                    <form action={deleteClient.bind(null, client.id)}>
-                      <ConfirmSubmitButton
-                        type="submit"
-                        variant="danger"
-                        size="sm"
-                        confirmMessage={`¿Eliminar a "${client.firstName} ${client.lastName}"? Esta acción no se puede deshacer.`}
-                      >
-                        Eliminar
-                      </ConfirmSubmitButton>
-                    </form>
+                    {canManage && (
+                      <form action={deleteClient.bind(null, client.id)}>
+                        <ConfirmSubmitButton
+                          type="submit"
+                          variant="danger"
+                          size="sm"
+                          confirmMessage={`¿Eliminar a "${client.firstName} ${client.lastName}"? Esta acción no se puede deshacer.`}
+                        >
+                          Eliminar
+                        </ConfirmSubmitButton>
+                      </form>
+                    )}
                   </div>
                 </td>
               </tr>

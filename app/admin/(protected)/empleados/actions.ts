@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireAdminSession } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 
 const employeeSchema = z.object({
@@ -38,7 +38,7 @@ function parseEmployeeFormData(formData: FormData) {
 }
 
 export async function createEmployee(formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("empleados.gestionar");
   const data = createEmployeeSchema.parse({
     ...parseEmployeeFormData(formData),
     email: formData.get("email"),
@@ -86,7 +86,7 @@ const updateEmployeeSchema = employeeSchema.extend({
 });
 
 export async function updateEmployee(id: string, formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("empleados.gestionar");
   const data = updateEmployeeSchema.parse({
     ...parseEmployeeFormData(formData),
     email: formData.get("email"),
@@ -133,7 +133,7 @@ export async function updateEmployee(id: string, formData: FormData) {
 }
 
 export async function setEmployeeActive(id: string, active: boolean) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("empleados.gestionar");
   const employee = await prisma.employee.findUniqueOrThrow({ where: { id } });
 
   await prisma.$transaction([
@@ -152,7 +152,7 @@ export async function setEmployeeActive(id: string, active: boolean) {
 }
 
 export async function deleteEmployee(id: string) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("empleados.gestionar");
   const employee = await prisma.employee.findUniqueOrThrow({ where: { id } });
 
   const sessionCount = await prisma.clientSession.count({
@@ -187,7 +187,7 @@ const salaryPeriodSchema = z.object({
 });
 
 export async function addSalaryPeriod(employeeId: string, formData: FormData) {
-  const session = await requireAdminSession();
+  const session = await requirePermission("empleados.gestionar");
   const data = salaryPeriodSchema.parse({
     amount: formData.get("amount"),
     validFrom: formData.get("validFrom"),

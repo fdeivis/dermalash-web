@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireAgendaManager } from "@/lib/auth";
+import { requirePagePermission } from "@/lib/auth";
 import {
   getSchedulableProfessionals,
   minutesToTime12,
@@ -69,7 +69,7 @@ export default async function HorariosPage({
 }: {
   searchParams: Promise<{ month?: string }>;
 }) {
-  await requireAgendaManager();
+  await requirePagePermission("agenda.gestionar");
   const { month: monthParam } = await searchParams;
   const monthKey = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : toMonthKey(peruToday());
   const { start: monthStart, end: monthEnd } = monthRange(monthKey);
