@@ -9,8 +9,8 @@ export const branding = {
   // Logo sobre fondo transparente: para el header y footer del sitio
   // público (fondos claros).
   logoUrl: "/brand/logo-transparente.png" as string | null,
-  // Versión con fondo propio (slate oscuro): para momentos "hero" como el
-  // login del panel, donde el logo se luce como imagen completa.
+  // Versión con fondo propio (medallón dorado sobre marfil): para momentos
+  // "hero" como el login del panel, donde el logo se luce como imagen completa.
   logoWithBgUrl: "/brand/logo-confondo.png" as string | null,
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "51999999999",
   contact: {

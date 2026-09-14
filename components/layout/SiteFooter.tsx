@@ -11,8 +11,8 @@ export function SiteFooter() {
             <Image
               src={branding.logoUrl}
               alt={branding.siteName}
-              width={2038}
-              height={772}
+              width={1254}
+              height={1254}
               className="h-9 w-auto"
             />
           ) : (
