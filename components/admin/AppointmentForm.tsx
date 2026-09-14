@@ -27,8 +27,16 @@ export function AppointmentForm({
     startTime?: string;
   };
 }) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const hasService = new FormData(e.currentTarget).getAll("serviceIds").length > 0;
+    if (!hasService) {
+      e.preventDefault();
+      alert("Seleccioná al menos un servicio.");
+    }
+  }
+
   return (
-    <form action={action} className="max-w-xl space-y-5">
+    <form action={action} onSubmit={handleSubmit} className="max-w-xl space-y-5">
       <div>
         <label className="block text-sm font-medium">Cliente</label>
         <select

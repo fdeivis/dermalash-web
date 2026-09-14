@@ -12,6 +12,7 @@ const ERROR_LABEL: Record<string, string> = {
   solapado: "El profesional ya tiene un turno en ese horario.",
   feriado:
     "Ese día el profesional tiene una ausencia o es feriado. Marcá \"Forzar\" si igual querés reservarlo.",
+  "datos-invalidos": "Revisá los datos: falta elegir cliente, profesional, horario o algún servicio.",
 };
 
 export default async function NuevoTurnoPage({

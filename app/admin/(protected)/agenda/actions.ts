@@ -56,7 +56,25 @@ function parseAppointmentForm(formData: FormData) {
 
 export async function createAppointment(formData: FormData) {
   const session = await requireAgendaManager();
-  const data = parseAppointmentForm(formData);
+  let data: z.infer<typeof appointmentSchema>;
+  try {
+    data = parseAppointmentForm(formData);
+  } catch (error) {
+    // Sin esto, enviar el form con algún campo inválido (típicamente: ningún
+    // servicio tildado, que un checkbox no puede exigir con `required`)
+    // tira un ZodError sin capturar y el usuario ve la pantalla de error
+    // genérica de Next.js en vez de un mensaje entendible.
+    if (!(error instanceof z.ZodError)) throw error;
+    const params = new URLSearchParams({
+      error: "datos-invalidos",
+      professionalId: String(formData.get("professionalId") ?? ""),
+      date: String(formData.get("date") ?? ""),
+      startTime: String(formData.get("startTime") ?? ""),
+      clientId: String(formData.get("clientId") ?? ""),
+    });
+    formData.getAll("serviceIds").forEach((id) => params.append("serviceIds", String(id)));
+    redirect(`/admin/agenda/nuevo?${params}`);
+  }
   const startAt = buildRange(data.date, data.startTime);
   const { services, endAt } = await resolveServicesAndEnd(data.serviceIds, startAt);
 
