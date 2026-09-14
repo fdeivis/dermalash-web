@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
+import { deleteImage } from "@/lib/supabase";
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, "El nombre es obligatorio"),
@@ -16,7 +17,7 @@ const employeeSchema = z.object({
   birthDate: z.coerce.date().optional(),
   documentId: z.string().optional(),
   phone: z.string().optional(),
-  cvUrl: z.string().url().optional(),
+  cvUrl: z.string().url().nullable(),
 });
 
 const createEmployeeSchema = employeeSchema.extend({
@@ -25,6 +26,7 @@ const createEmployeeSchema = employeeSchema.extend({
 });
 
 function parseEmployeeFormData(formData: FormData) {
+  const cvUrl = String(formData.get("cvUrl") ?? "").trim();
   return employeeSchema.parse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
@@ -33,7 +35,7 @@ function parseEmployeeFormData(formData: FormData) {
     birthDate: formData.get("birthDate") || undefined,
     documentId: formData.get("documentId") || undefined,
     phone: formData.get("phone") || undefined,
-    cvUrl: formData.get("cvUrl") || undefined,
+    cvUrl: cvUrl.length > 0 ? cvUrl : null,
   });
 }
 
@@ -127,6 +129,10 @@ export async function updateEmployee(id: string, formData: FormData) {
   });
   await logAction(session, "empleado.editar", "Employee", id, `${data.firstName} ${data.lastName}`);
 
+  if (employee.cvUrl && employee.cvUrl !== data.cvUrl) {
+    await deleteImage(employee.cvUrl).catch(() => {});
+  }
+
   revalidatePath("/admin/empleados");
   revalidatePath(`/admin/empleados/${id}`);
   redirect(`/admin/empleados/${id}`);
@@ -174,6 +180,7 @@ export async function deleteEmployee(id: string) {
     id,
     `${employee.firstName} ${employee.lastName}`
   );
+  if (employee.cvUrl) await deleteImage(employee.cvUrl).catch(() => {});
 
   revalidatePath("/admin/empleados");
   redirect("/admin/empleados");

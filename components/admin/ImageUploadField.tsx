@@ -39,14 +39,21 @@ export function ImageUploadField({
 
   return (
     <div className="space-y-2">
-      <input
-        type="url"
-        name={name}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="https://..."
-        className="w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
-      />
+      <div className="flex gap-2">
+        <input
+          type="url"
+          name={name}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="https://..."
+          className="w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+        />
+        {value && (
+          <Button type="button" variant="outline" size="sm" onClick={() => setValue("")}>
+            Quitar
+          </Button>
+        )}
+      </div>
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-brand border border-brand-border px-3 py-1.5 text-sm hover:bg-brand-bg">
         {uploading ? "Subiendo..." : "Subir imagen"}
         <input

@@ -71,6 +71,32 @@ export async function deletePrivateFile(path: string): Promise<void> {
 }
 
 /**
+ * Extrae el path dentro de STORAGE_BUCKET a partir de una URL pública de
+ * Supabase Storage. Devuelve null si la URL no pertenece a este bucket (por
+ * ejemplo, una URL externa pegada a mano en el campo de imagen), para que el
+ * llamador la ignore en vez de intentar borrarla.
+ */
+export function getStoragePathFromPublicUrl(url: string): string | null {
+  const marker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  return decodeURIComponent(url.slice(index + marker.length));
+}
+
+/**
+ * Borra una imagen del bucket público a partir de su URL pública. No hace
+ * nada (sin lanzar error) si la URL no pertenece a este bucket, para no
+ * romper el guardado si el campo tenía una URL externa.
+ */
+export async function deleteImage(url: string): Promise<void> {
+  const path = getStoragePathFromPublicUrl(url);
+  if (!path) return;
+
+  const supabase = getSupabaseStorageClient();
+  await supabase.storage.from(STORAGE_BUCKET).remove([path]);
+}
+
+/**
  * Genera una URL firmada de corta duración para leer un archivo privado.
  * Debe invocarse siempre desde el servidor, después de requireAdminSession().
  */

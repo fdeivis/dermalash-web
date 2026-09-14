@@ -8,6 +8,8 @@ import { requirePagePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ClientAttachmentUploader } from "@/components/admin/ClientAttachmentUploader";
+import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
+import { deleteClientAttachment } from "../actions";
 
 const KIND_LABEL: Record<string, string> = {
   PHOTO: "Foto",
@@ -118,18 +120,32 @@ export default async function VerClientePage({
               <span>
                 {KIND_LABEL[attachment.kind]} · {attachment.createdAt.toLocaleDateString("es-PE")}
               </span>
-              {attachment.url ? (
-                <a
-                  href={attachment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-brand-accent underline"
-                >
-                  Ver
-                </a>
-              ) : (
-                <span className="text-red-600">No disponible</span>
-              )}
+              <span className="flex items-center gap-3">
+                {attachment.url ? (
+                  <a
+                    href={attachment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-accent underline"
+                  >
+                    Ver
+                  </a>
+                ) : (
+                  <span className="text-red-600">No disponible</span>
+                )}
+                {canManage && (
+                  <form action={deleteClientAttachment.bind(null, client.id, attachment.id)}>
+                    <ConfirmSubmitButton
+                      type="submit"
+                      variant="danger"
+                      size="sm"
+                      confirmMessage="¿Eliminar este archivo? Esta acción no se puede deshacer."
+                    >
+                      Eliminar
+                    </ConfirmSubmitButton>
+                  </form>
+                )}
+              </span>
             </li>
           ))}
           {attachmentsWithUrl.length === 0 && (

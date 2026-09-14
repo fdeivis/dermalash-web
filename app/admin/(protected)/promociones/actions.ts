@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
+import { deleteImage } from "@/lib/supabase";
 
 const promotionSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -60,6 +61,7 @@ export async function createPromotion(formData: FormData) {
 export async function updatePromotion(id: string, formData: FormData) {
   const session = await requirePermission("promociones.gestionar");
   const { serviceIds, ...data } = parseFormData(formData);
+  const previous = await prisma.promotion.findUniqueOrThrow({ where: { id } });
 
   await prisma.promotion.update({
     where: { id },
@@ -67,16 +69,19 @@ export async function updatePromotion(id: string, formData: FormData) {
   });
   await logAction(session, "promocion.editar", "Promotion", id, data.name);
 
+  const droppedImages = previous.images.filter((url) => !data.images.includes(url));
+  await Promise.all(droppedImages.map((url) => deleteImage(url).catch(() => {})));
+
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
   revalidatePath("/");
-  redirect("/admin/promociones");
 }
 
 export async function deletePromotion(id: string) {
   const session = await requirePermission("promociones.gestionar");
   const deleted = await prisma.promotion.delete({ where: { id } });
   await logAction(session, "promocion.eliminar", "Promotion", id, deleted.name);
+  await Promise.all(deleted.images.map((url) => deleteImage(url).catch(() => {})));
   revalidatePath("/admin/promociones");
   revalidatePath("/promociones");
   revalidatePath("/");

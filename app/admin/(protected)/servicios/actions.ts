@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { uniqueSlug } from "@/lib/slug";
 import { requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
+import { deleteImage } from "@/lib/supabase";
 
 const serviceSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -57,8 +58,20 @@ export async function createService(formData: FormData) {
 export async function updateService(id: string, formData: FormData) {
   const session = await requirePermission("servicios.gestionar");
   const data = parseFormData(formData);
+  const previous = await prisma.service.findUniqueOrThrow({ where: { id } });
   await prisma.service.update({ where: { id }, data });
   await logAction(session, "servicio.editar", "Service", id, data.name);
+
+  const droppedImages = previous.images.filter((url) => !data.images.includes(url));
+  const droppedCarouselImage =
+    previous.carouselImage && previous.carouselImage !== data.carouselImage
+      ? previous.carouselImage
+      : null;
+  await Promise.all(
+    [...droppedImages, droppedCarouselImage]
+      .filter((url): url is string => !!url)
+      .map((url) => deleteImage(url).catch(() => {}))
+  );
 
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
@@ -68,10 +81,9 @@ export async function updateService(id: string, formData: FormData) {
 
 export async function deleteService(id: string) {
   const session = await requirePermission("servicios.gestionar");
-  let deletedName: string | undefined;
+  let deleted: Awaited<ReturnType<typeof prisma.service.delete>>;
   try {
-    const deleted = await prisma.service.delete({ where: { id } });
-    deletedName = deleted.name;
+    deleted = await prisma.service.delete({ where: { id } });
   } catch (error) {
     // El servicio tiene sesiones registradas (ON DELETE RESTRICT): no se
     // borra el historial. Se informa en vez de romper la página.
@@ -80,7 +92,12 @@ export async function deleteService(id: string) {
     }
     throw error;
   }
-  await logAction(session, "servicio.eliminar", "Service", id, deletedName);
+  await logAction(session, "servicio.eliminar", "Service", id, deleted.name);
+  await Promise.all(
+    [...deleted.images, deleted.carouselImage]
+      .filter((url): url is string => !!url)
+      .map((url) => deleteImage(url).catch(() => {}))
+  );
 
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");

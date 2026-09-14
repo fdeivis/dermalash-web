@@ -123,3 +123,16 @@ export async function addClientAttachment(
     return { error: error instanceof Error ? error.message : "Error al subir el archivo" };
   }
 }
+
+export async function deleteClientAttachment(clientId: string, attachmentId: string) {
+  const session = await requirePermission("clientes.gestionar");
+  const attachment = await prisma.clientAttachment.findUniqueOrThrow({
+    where: { id: attachmentId },
+  });
+
+  await prisma.clientAttachment.delete({ where: { id: attachmentId } });
+  await deletePrivateFile(attachment.storagePath).catch(() => {});
+  await logAction(session, "cliente.adjunto.eliminar", "Client", clientId, attachment.kind);
+
+  revalidatePath(`/admin/clientes/${clientId}`);
+}
