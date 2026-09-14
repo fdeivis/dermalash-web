@@ -22,7 +22,7 @@ export default async function TreatmentDetailPage({
     <div className="mx-auto max-w-4xl px-4 py-16">
       <div className="relative aspect-[16/9] w-full overflow-hidden rounded-brand bg-brand-surface">
         {image ? (
-          <Image src={image} alt={service.name} fill className="object-cover" />
+          <Image src={image} alt={service.name} fill className="object-contain" />
         ) : (
           <div className="flex h-full items-center justify-center text-brand-muted">
             Sin imagen
