@@ -7,6 +7,13 @@ export function getPublishedServices() {
   });
 }
 
+export function getCarouselServices() {
+  return prisma.service.findMany({
+    where: { status: "PUBLISHED", showInCarousel: true },
+    orderBy: { order: "asc" },
+  });
+}
+
 export function getServiceBySlug(slug: string) {
   return prisma.service.findFirst({
     where: { slug, status: "PUBLISHED" },

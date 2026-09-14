@@ -42,15 +42,15 @@ export function Hero() {
           </div>
         </div>
 
-        {branding.logoWithBgUrl && (
-          <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-brand shadow-2xl ring-1 ring-black/5 md:ml-auto">
+        {branding.logoUrl && (
+          <div className="relative mx-auto aspect-square w-full max-w-sm md:ml-auto">
             <Image
-              src={branding.logoWithBgUrl}
+              src={branding.logoUrl}
               alt={branding.siteName}
               fill
               priority
               sizes="(min-width: 768px) 384px, 320px"
-              className="object-cover"
+              className="object-contain drop-shadow-xl"
             />
           </div>
         )}

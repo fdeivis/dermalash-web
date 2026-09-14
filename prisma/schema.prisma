@@ -315,6 +315,11 @@ model Service {
   price            Decimal                @db.Decimal(10, 2)
   priceFrom        Boolean                @default(false)
   images           String[]               @default([])
+  // Controla si el servicio aparece en el carrusel destacado de la home
+  // (distinto de `images`, que se usa en la grilla de tratamientos y en la
+  // ficha del servicio).
+  showInCarousel   Boolean                @default(false)
+  carouselImage    String?
   status           ContentStatus          @default(DRAFT)
   order            Int                    @default(0)
   promotions       Promotion[]            @relation("PromotionServices")

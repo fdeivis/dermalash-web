@@ -16,9 +16,12 @@ const serviceSchema = z.object({
   price: z.coerce.number().nonnegative(),
   priceFrom: z.boolean(),
   images: z.array(z.string().url()),
+  showInCarousel: z.boolean(),
+  carouselImage: z.string().url().nullable(),
 });
 
 function parseFormData(formData: FormData) {
+  const carouselImage = String(formData.get("carouselImage") ?? "").trim();
   return serviceSchema.parse({
     name: formData.get("name"),
     description: formData.get("description"),
@@ -26,6 +29,8 @@ function parseFormData(formData: FormData) {
     price: formData.get("price"),
     priceFrom: formData.get("priceFrom") === "on",
     images: formData.getAll("images").filter((v) => String(v).trim().length > 0),
+    showInCarousel: formData.get("showInCarousel") === "on",
+    carouselImage: carouselImage.length > 0 ? carouselImage : null,
   });
 }
 

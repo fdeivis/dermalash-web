@@ -1,5 +1,6 @@
 import type { Service } from "@prisma/client";
 import { ImageUrlList } from "@/components/admin/ImageUrlList";
+import { SingleImageField } from "@/components/admin/SingleImageField";
 import { Button } from "@/components/ui/button";
 
 export function ServiceForm({
@@ -67,6 +68,31 @@ export function ServiceForm({
         <label className="block text-sm font-medium">Imágenes</label>
         <div className="mt-1">
           <ImageUrlList name="images" initial={service?.images} folder="servicios" />
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-brand border border-brand-border p-4">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="showInCarousel"
+            defaultChecked={service?.showInCarousel}
+          />
+          Publicar en el carrusel de la home
+        </label>
+        <div>
+          <label className="block text-sm font-medium">Imagen para el carrusel</label>
+          <p className="mt-0.5 text-xs text-brand-muted">
+            Opcional: pensada para el carrusel grande de inicio, puede ser distinta a las
+            imágenes de arriba. Si no se indica, se usa la primera imagen del servicio.
+          </p>
+          <div className="mt-1">
+            <SingleImageField
+              name="carouselImage"
+              initial={service?.carouselImage}
+              folder="servicios/carrusel"
+            />
+          </div>
         </div>
       </div>
 
