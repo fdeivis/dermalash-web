@@ -30,6 +30,7 @@ export default async function VerClientePage({
 }) {
   const session = await requirePagePermission("clientes.ver");
   const canManage = await hasPermission(session.user.role, "clientes.gestionar");
+  const canInvoice = await hasPermission(session.user.role, "sesiones.crear");
   const { id } = await params;
   const client = await prisma.client.findUnique({
     where: { id },
@@ -155,7 +156,16 @@ export default async function VerClientePage({
       </div>
 
       <div className="mt-10 max-w-xl">
-        <h2 className="font-display text-lg">Historial de sesiones</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg">Historial de facturas</h2>
+          {canInvoice && (
+            <Link href={`/admin/sesiones/nuevo?clientId=${client.id}`}>
+              <Button variant="outline" size="sm">
+                Emitir factura
+              </Button>
+            </Link>
+          )}
+        </div>
         <div className="mt-4 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-brand-border text-brand-muted">
@@ -182,7 +192,7 @@ export default async function VerClientePage({
               {client.sessions.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-brand-muted">
-                    Todavía no tiene sesiones registradas.
+                    Todavía no tiene facturas registradas.
                   </td>
                 </tr>
               )}

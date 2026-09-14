@@ -92,10 +92,10 @@ export default async function TurnoDetailPage({
 
       {appointment.session && (
         <p className="mt-4 rounded-brand border border-brand-border bg-brand-bg px-3 py-2 text-sm">
-          Este turno ya tiene una sesión registrada. Para liberar o cancelar el turno, primero hay
-          que borrar la sesión desde{" "}
+          Este turno ya tiene una factura registrada. Para liberar o cancelar el turno, primero hay
+          que borrar la factura desde{" "}
           <Link href="/admin/sesiones" className="underline">
-            Sesiones
+            Facturas
           </Link>
           .
         </p>
@@ -104,7 +104,7 @@ export default async function TurnoDetailPage({
       {!appointment.session && isActive && (
         <div className="mt-6">
           <Link href={`/admin/sesiones/nuevo?appointmentId=${appointment.id}`}>
-            <Button>Registrar sesión</Button>
+            <Button>Registrar factura</Button>
           </Link>
         </div>
       )}

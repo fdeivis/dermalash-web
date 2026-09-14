@@ -190,7 +190,7 @@ export async function cancelAppointment(id: string, formData: FormData) {
     include: { client: true, session: true },
   });
   if (existing.session) {
-    throw new Error("No se puede cancelar un turno que ya tiene una sesión registrada");
+    throw new Error("No se puede cancelar un turno que ya tiene una factura registrada");
   }
 
   await prisma.appointment.update({
@@ -214,7 +214,7 @@ export async function markNoShow(id: string) {
     where: { id },
     include: { session: true },
   });
-  if (existing.session) throw new Error("Este turno ya tiene una sesión registrada");
+  if (existing.session) throw new Error("Este turno ya tiene una factura registrada");
 
   await prisma.appointment.update({ where: { id }, data: { status: "NO_ASISTIO" } });
   await logAction(session, "turno.no-asistio", "Appointment", id);

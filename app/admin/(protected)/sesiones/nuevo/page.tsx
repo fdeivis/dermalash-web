@@ -2,9 +2,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { professionalLabel, peruParts, peruToday, endOfDay } from "@/lib/scheduling";
 import { requirePagePermission } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
 import { SessionForm } from "@/components/admin/SessionForm";
-import { createClientSession } from "../actions";
+import { createClientSession, getClientOpenAppointments } from "../actions";
 
 // Las listas de clientes/profesionales/servicios/promociones deben reflejar
 // siempre el estado actual: crear un cliente, un servicio o una promoción
@@ -21,27 +20,24 @@ function toDateTimeLocal(date: Date) {
 export default async function NuevaSesionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ appointmentId?: string }>;
+  searchParams: Promise<{ appointmentId?: string; clientId?: string }>;
 }) {
-  const session = await requirePagePermission("sesiones.crear");
-  const { appointmentId } = await searchParams;
-  // Toda sesión nueva se registra a partir de un turno (así se valida
-  // disponibilidad/solapamiento una sola vez, en la Agenda, y no queda un
-  // atajo que la salte). Sin turno, se manda a crear uno primero.
-  if (!appointmentId) redirect("/admin/agenda");
+  await requirePagePermission("sesiones.crear");
+  const { appointmentId, clientId: clientIdParam } = await searchParams;
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
-    include: { services: { include: { service: true } }, client: true, professional: true },
-  });
-  if (!appointment) redirect("/admin/agenda");
+  // Una factura ya no requiere partir de un turno: puede emitirse suelta
+  // para cualquier cliente. Si viene con `appointmentId` (desde la Agenda o
+  // el detalle de un turno) se sigue precargando todo desde ahí, como antes.
+  const appointment = appointmentId
+    ? await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: { services: { include: { service: true } }, client: true, professional: true },
+      })
+    : null;
+  if (appointmentId && !appointment) redirect("/admin/agenda");
 
-  // Quien no gestiona la agenda (hoy: Esteticista) solo puede registrar la
-  // sesión de un turno propio (sección 3 del diseño funcional).
-  const canManageAgenda = await hasPermission(session.user.role, "agenda.gestionar");
-  if (!canManageAgenda && appointment.professionalId !== session.user.id) {
-    redirect("/admin/agenda");
-  }
+  const knownClientId = appointment?.clientId ?? clientIdParam;
+  const initialAppointments = knownClientId ? await getClientOpenAppointments(knownClientId) : [];
 
   // "Hoy" en el calendario de Perú, no en el huso del servidor: una
   // promoción cargada hasta "hoy" no debería desaparecer 5 horas antes de
@@ -67,17 +63,25 @@ export default async function NuevaSesionPage({
 
   return (
     <div>
-      <h1 className="font-display text-2xl">Nueva sesión</h1>
-      <p className="mt-2 rounded-brand border border-brand-border bg-brand-bg px-4 py-3 text-sm">
-        Turno de <strong>{appointment.client.firstName} {appointment.client.lastName}</strong> con{" "}
-        {professionalLabel(appointment.professional)} —{" "}
-        {appointment.services.map((l) => l.service.name).join(", ")}. Revisá los datos y{" "}
-        <strong>marcá algún servicio más</strong> si hizo algo además de lo agendado; recién se
-        guarda cuando confirmes "Registrar sesión" al final.
-      </p>
+      <h1 className="font-display text-2xl">Nueva factura</h1>
+      {appointment ? (
+        <p className="mt-2 rounded-brand border border-brand-border bg-brand-bg px-4 py-3 text-sm">
+          Turno de <strong>{appointment.client.firstName} {appointment.client.lastName}</strong> con{" "}
+          {professionalLabel(appointment.professional)} —{" "}
+          {appointment.services.map((l) => l.service.name).join(", ")}. Revisá los datos y{" "}
+          <strong>marcá algún servicio más</strong> si hizo algo además de lo agendado; recién se
+          guarda cuando confirmes "Registrar factura" al final.
+        </p>
+      ) : (
+        <p className="mt-2 rounded-brand border border-brand-border bg-brand-bg px-4 py-3 text-sm">
+          Elegí un cliente. Si tiene algún turno reservado o confirmado, te lo va a proponer para
+          vincularlo a la factura y precargar sus servicios; si no tiene ninguno, la factura se
+          registra igual, sin turno asociado.
+        </p>
+      )}
       <p className="mt-2 text-sm text-brand-muted">
-        El precio sugerido usa las promociones vigentes hoy; si la fecha de la sesión es otra, el
-        sistema vuelve a calcularlo al guardar.
+        El precio sugerido usa las promociones vigentes hoy; si la fecha de la factura es otra, el
+        sistema vuelve a validarlas al guardar.
       </p>
       <div className="mt-6">
         <SessionForm
@@ -91,12 +95,14 @@ export default async function NuevaSesionPage({
             serviceIds: p.services.map((s) => s.id),
           }))}
           action={createClientSession}
+          getClientAppointments={getClientOpenAppointments}
+          initialAppointments={initialAppointments}
           defaultValues={{
-            clientId: appointment.clientId,
-            attendedByUserId: appointment.professionalId,
-            serviceIds: appointment.services.map((s) => s.serviceId),
-            appointmentId: appointment.id,
-            sessionDate: toDateTimeLocal(appointment.startAt),
+            clientId: appointment?.clientId ?? clientIdParam,
+            attendedByUserId: appointment?.professionalId,
+            serviceIds: appointment?.services.map((s) => s.serviceId),
+            appointmentId: appointment?.id,
+            sessionDate: appointment ? toDateTimeLocal(appointment.startAt) : undefined,
           }}
         />
       </div>

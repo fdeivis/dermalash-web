@@ -29,12 +29,9 @@ export default async function AdminSesionesPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl">Sesiones</h1>
-        {/* Toda sesión nueva sale de un turno (existente o creado ahí mismo
-            para un cliente sin cita previa), para no saltear la validación
-            de disponibilidad de la Agenda. */}
-        <Link href="/admin/agenda">
-          <Button>Nueva sesión</Button>
+        <h1 className="font-display text-2xl">Facturas</h1>
+        <Link href="/admin/sesiones/nuevo">
+          <Button>Nueva factura</Button>
         </Link>
       </div>
 
@@ -75,7 +72,7 @@ export default async function AdminSesionesPage() {
                         type="submit"
                         variant="danger"
                         size="sm"
-                        confirmMessage="¿Eliminar esta sesión? También se elimina el ingreso asociado. No se puede deshacer."
+                        confirmMessage="¿Eliminar esta factura? También se elimina el ingreso asociado. No se puede deshacer."
                       >
                         Eliminar
                       </ConfirmSubmitButton>
@@ -87,7 +84,7 @@ export default async function AdminSesionesPage() {
             {sessions.length === 0 && (
               <tr>
                 <td colSpan={canDelete ? 7 : 6} className="px-4 py-8 text-center text-brand-muted">
-                  Todavía no hay sesiones registradas.
+                  Todavía no hay facturas registradas.
                 </td>
               </tr>
             )}

@@ -238,13 +238,14 @@ export default async function AgendaPage({
                               </Link>
                             ) : (
                               // La Esteticista no gestiona el turno (reprogramar/cancelar/borrar),
-                              // pero sí puede registrar su propia sesión atendida (sección 3).
+                              // pero sí puede registrar su propia factura (cualquiera con
+                              // sesiones.crear puede facturar cualquier turno o cliente).
                               (appointment.status === "RESERVADO" || appointment.status === "CONFIRMADO") && (
                                 <Link
                                   href={`/admin/sesiones/nuevo?appointmentId=${appointment.id}`}
                                   className="mt-2 inline-block text-xs underline hover:text-brand-ink"
                                 >
-                                  Registrar sesión →
+                                  Registrar factura →
                                 </Link>
                               )
                             )}

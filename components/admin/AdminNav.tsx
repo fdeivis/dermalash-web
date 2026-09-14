@@ -14,7 +14,7 @@ const LINKS = [
   { href: "/admin/promociones", label: "Promociones" },
   { href: "/admin/novedades", label: "Novedades" },
   { href: "/admin/clientes", label: "Clientes" },
-  { href: "/admin/sesiones", label: "Sesiones" },
+  { href: "/admin/sesiones", label: "Facturas" },
   // Visible para todos los roles: Esteticista ve su propia agenda de solo
   // lectura; el resto administra (ver /admin/agenda).
   { href: "/admin/agenda", label: "Agenda" },

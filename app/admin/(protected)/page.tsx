@@ -62,7 +62,7 @@ export default async function AdminDashboardPage() {
     canViewNovedades && { label: "Novedades", count: posts, href: "/admin/novedades" },
     canViewClientes && { label: "Clientes", count: clients, href: "/admin/clientes" },
     canViewEmpleados && { label: "Empleados", count: employees, href: "/admin/empleados" },
-    canViewSesiones && { label: "Sesiones", count: sessions, href: "/admin/sesiones" },
+    canViewSesiones && { label: "Facturas", count: sessions, href: "/admin/sesiones" },
   ].filter(Boolean) as { label: string; count: number | null; href: string }[];
 
   return (

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
-import { hasPermission } from "@/lib/permissions";
+import { professionalLabel } from "@/lib/scheduling";
 import { resolveSessionPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 import { parseDateTimeLocal } from "@/lib/scheduling";
@@ -18,12 +18,13 @@ const sessionSchema = z.object({
   // vez de en hora de Perú. Se convierte a mano más abajo con parseDateTimeLocal.
   sessionDate: z.string().min(1, "Elegí una fecha y hora"),
   serviceIds: z.array(z.string()).min(1, "Seleccioná al menos un servicio"),
+  promotionIds: z.array(z.string()),
   totalAmount: z.coerce.number().nonnegative(),
   paymentMethod: z.enum(["EFECTIVO", "YAPE", "PLIN", "TARJETA", "TRANSFERENCIA", "OTRO"]),
   notes: z.string().max(2000, "Máximo 2000 caracteres").optional(),
-  // MVP3: si la sesión se origina desde un turno reservado, queda vinculada
-  // y el turno pasa a Atendido en la misma operación (sección 7.2 del
-  // diseño funcional) — no hay un botón manual separado para eso.
+  // Si la factura se origina desde (o se vincula a) un turno reservado,
+  // queda vinculada y el turno pasa a Atendido en la misma operación — no
+  // hay un botón manual separado para eso.
   appointmentId: z.string().optional(),
 });
 
@@ -34,32 +35,19 @@ export async function createClientSession(formData: FormData) {
     attendedByUserId: formData.get("attendedByUserId"),
     sessionDate: formData.get("sessionDate"),
     serviceIds: formData.getAll("serviceIds"),
+    promotionIds: formData.getAll("promotionIds"),
     totalAmount: formData.get("totalAmount"),
     paymentMethod: formData.get("paymentMethod"),
     notes: formData.get("notes") || undefined,
     appointmentId: formData.get("appointmentId") || undefined,
   });
 
-  // Quien no gestiona la agenda (hoy: Esteticista) solo puede registrar la
-  // sesión de un turno propio, aunque conozca el id de otro (sección 3 del
-  // diseño funcional).
-  if (!(await hasPermission(session.user.role, "agenda.gestionar"))) {
-    if (!data.appointmentId) throw new Error("No tenés permiso para registrar esta sesión");
-    const appointment = await prisma.appointment.findUniqueOrThrow({
-      where: { id: data.appointmentId },
-      select: { professionalId: true },
-    });
-    if (appointment.professionalId !== session.user.id) {
-      throw new Error("Solo podés registrar sesiones de tus propios turnos");
-    }
-  }
-
   const sessionDate = parseDateTimeLocal(data.sessionDate);
 
   // El precio/promoción se resuelve de nuevo acá (no se confía en lo que
   // mostró el formulario) para que el snapshot use siempre la fecha real de
   // la sesión, aunque el usuario la haya cambiado a una fecha pasada.
-  const resolved = await resolveSessionPricing(data.serviceIds, sessionDate);
+  const resolved = await resolveSessionPricing(data.serviceIds, data.promotionIds, sessionDate);
 
   const clientSession = await prisma.$transaction(async (tx) => {
     const created = await tx.clientSession.create({
@@ -141,4 +129,43 @@ export async function deleteClientSession(id: string) {
   revalidatePath("/admin/sesiones");
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/agenda");
+}
+
+export type ClientOpenAppointment = {
+  id: string;
+  startAt: string;
+  professionalId: string;
+  professionalLabel: string;
+  serviceIds: string[];
+  serviceNames: string[];
+};
+
+/**
+ * Turnos del cliente todavía sin factura (Reservado/Confirmado), para que el
+ * formulario de factura pueda ofrecerlos como referencia y precargar sus
+ * servicios al vincularlos.
+ */
+export async function getClientOpenAppointments(
+  clientId: string
+): Promise<ClientOpenAppointment[]> {
+  await requirePermission("sesiones.crear");
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      clientId,
+      status: { in: ["RESERVADO", "CONFIRMADO"] },
+      session: null,
+    },
+    include: { services: { include: { service: true } }, professional: true },
+    orderBy: { startAt: "asc" },
+  });
+
+  return appointments.map((a) => ({
+    id: a.id,
+    startAt: a.startAt.toISOString(),
+    professionalId: a.professionalId,
+    professionalLabel: professionalLabel(a.professional),
+    serviceIds: a.services.map((s) => s.serviceId),
+    serviceNames: a.services.map((s) => s.service.name),
+  }));
 }

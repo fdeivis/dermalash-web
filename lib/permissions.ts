@@ -61,14 +61,14 @@ export const PERMISSION_MODULES = [
   },
   {
     key: "sesiones",
-    label: "Sesiones",
+    label: "Facturas",
     permissions: [
-      { key: "sesiones.ver", label: "Ver el listado de sesiones registradas" },
+      { key: "sesiones.ver", label: "Ver el listado de facturas registradas" },
       {
         key: "sesiones.crear",
-        label: "Registrar sesiones (sin permiso para gestionar agenda, solo en turnos propios)",
+        label: "Registrar facturas (con o sin turno vinculado, para cualquier cliente)",
       },
-      { key: "sesiones.eliminar", label: "Eliminar sesiones registradas" },
+      { key: "sesiones.eliminar", label: "Eliminar facturas registradas" },
     ],
   },
 ] as const;
@@ -101,8 +101,8 @@ export const DEFAULT_PERMISSIONS: Record<ConfigurableRole, PermissionKey[]> = {
   SOCIO: [...ALL_PERMISSION_KEYS],
   // Acceso a todo excepto Empleados.
   ENCARGADO: ALL_PERMISSION_KEYS.filter((k) => !k.startsWith("empleados.")),
-  // Solo consulta, salvo crear sesiones (acotado a sus propios turnos en
-  // código, ver requirePermission/createClientSession).
+  // Solo consulta, salvo registrar facturas (con o sin turno, para
+  // cualquier cliente — ver createClientSession).
   ESTETICISTA: [
     "servicios.ver",
     "promociones.ver",
