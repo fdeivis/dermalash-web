@@ -17,13 +17,17 @@ function toDateTimeLocal(date: Date) {
   return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
 }
 
+const ERROR_LABEL: Record<string, string> = {
+  "datos-invalidos": "Revisá los datos: falta elegir cliente, profesional, fecha, medio de pago o algún servicio.",
+};
+
 export default async function NuevaSesionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ appointmentId?: string; clientId?: string }>;
+  searchParams: Promise<{ appointmentId?: string; clientId?: string; error?: string }>;
 }) {
   await requirePagePermission("sesiones.crear");
-  const { appointmentId, clientId: clientIdParam } = await searchParams;
+  const { appointmentId, clientId: clientIdParam, error } = await searchParams;
 
   // Una factura ya no requiere partir de un turno: puede emitirse suelta
   // para cualquier cliente. Si viene con `appointmentId` (desde la Agenda o
@@ -64,6 +68,11 @@ export default async function NuevaSesionPage({
   return (
     <div>
       <h1 className="font-display text-2xl">Nueva factura</h1>
+      {error && (
+        <p className="mt-2 rounded-brand border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {ERROR_LABEL[error] ?? "No se pudo guardar la factura."}
+        </p>
+      )}
       {appointment ? (
         <p className="mt-2 rounded-brand border border-brand-border bg-brand-bg px-4 py-3 text-sm">
           Turno de <strong>{appointment.client.firstName} {appointment.client.lastName}</strong> con{" "}

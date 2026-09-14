@@ -30,17 +30,32 @@ const sessionSchema = z.object({
 
 export async function createClientSession(formData: FormData) {
   const session = await requirePermission("sesiones.crear");
-  const data = sessionSchema.parse({
-    clientId: formData.get("clientId"),
-    attendedByUserId: formData.get("attendedByUserId"),
-    sessionDate: formData.get("sessionDate"),
-    serviceIds: formData.getAll("serviceIds"),
-    promotionIds: formData.getAll("promotionIds"),
-    totalAmount: formData.get("totalAmount"),
-    paymentMethod: formData.get("paymentMethod"),
-    notes: formData.get("notes") || undefined,
-    appointmentId: formData.get("appointmentId") || undefined,
-  });
+  let data: z.infer<typeof sessionSchema>;
+  try {
+    data = sessionSchema.parse({
+      clientId: formData.get("clientId"),
+      attendedByUserId: formData.get("attendedByUserId"),
+      sessionDate: formData.get("sessionDate"),
+      serviceIds: formData.getAll("serviceIds"),
+      promotionIds: formData.getAll("promotionIds"),
+      totalAmount: formData.get("totalAmount"),
+      paymentMethod: formData.get("paymentMethod"),
+      notes: formData.get("notes") || undefined,
+      appointmentId: formData.get("appointmentId") || undefined,
+    });
+  } catch (error) {
+    // Sin esto, enviar el form con algún campo inválido (típicamente: ningún
+    // servicio tildado, que un checkbox no puede exigir con `required`) tira
+    // un ZodError sin capturar y el usuario ve la pantalla de error genérica
+    // de Next.js en vez de un mensaje entendible.
+    if (!(error instanceof z.ZodError)) throw error;
+    const params = new URLSearchParams({ error: "datos-invalidos" });
+    const clientId = formData.get("clientId");
+    const appointmentId = formData.get("appointmentId");
+    if (clientId) params.set("clientId", String(clientId));
+    if (appointmentId) params.set("appointmentId", String(appointmentId));
+    redirect(`/admin/sesiones/nuevo?${params}`);
+  }
 
   const sessionDate = parseDateTimeLocal(data.sessionDate);
 
