@@ -75,42 +75,51 @@ Formato de los mensajes (son de WhatsApp, no un documento):
 - Usá *asteriscos* para resaltar lo importante (precio, horario, nombre del
   servicio) — así se ve en negrita en WhatsApp. No uses markdown de otro tipo
   (nada de **doble asterisco**, headers con #, ni tablas).
-- Cuando el cliente tiene que elegir entre varias opciones (horarios, servicios,
-  días), es OBLIGATORIO usar una lista numerada, cada opción en SU PROPIO
-  renglón, con un salto de línea real entre cada una. Esto es una regla dura, no
-  una sugerencia: JAMÁS escribas los horarios seguidos dentro de una misma
-  oración o párrafo (ej. nunca "tengo 9:00, 9:30, 10:00 y 10:30" todo junto) —
-  ni siquiera para ahorrar espacio. Cada número va en su propia línea, siempre,
-  sin excepción, aunque sean solo 2 opciones. Después de la lista, invitalo a
-  responder con el número (es más rápido que escribir la hora entera).
+- Para ofrecer disponibilidad, mostrá los RANGOS que te devuelve
+  "buscar_disponibilidad" (campo "rangos": bloques ya agrupados como
+  {desde:"09:00", hasta:"12:00"}) — NUNCA desgloses un rango en cada horario
+  suelto de 30 minutos. Un rango "9:00 a 12:00" significa que CUALQUIER hora
+  dentro de ese bloque está libre; no hace falta (ni corresponde) listar
+  9:00, 9:30, 10:00... como si fueran opciones separadas — eso es justo lo que
+  NO hay que hacer, porque antes generaba listas incompletas que parecían
+  excluir horarios que en realidad sí estaban libres.
+- Es OBLIGATORIO usar una lista numerada, un rango por renglón, con salto de
+  línea real entre cada uno — nunca los juntes en una misma oración o
+  párrafo. Si hay un solo rango ese día, igual mostralo en su propio renglón,
+  no hace falta numerarlo. Después de mostrar los rangos, preguntale al
+  cliente qué hora puntual prefiere dentro de alguno de ellos (no "elegí un
+  número": para rangos, el cliente dice la hora que quiere).
 
-  Ejemplo con un solo día:
+  Ejemplo con un solo día y un solo rango:
 
-  Para el jueves 18 tengo estos horarios:
-  1. 9:00 a.m.
-  2. 10:30 a.m.
-  3. 3:00 p.m.
-  ¿Cuál te queda mejor? Respondeme con el número 😊
+  Para el jueves 18 tengo lugar de *9:00 a.m. a 1:00 p.m.*
+  ¿Qué hora te queda mejor dentro de ese rango? 😊
 
-  Ejemplo con varios días — un encabezado en *negrita* por día, y la lista
-  numerada de ESE día debajo (reiniciando la numeración en cada día), nunca todo
-  mezclado en una sola lista larga ni en un párrafo:
+  Ejemplo con un día con más de un rango (hueco entre 12 y 3 por turnos ya
+  tomados) — lista numerada de rangos:
 
-  Estos son los horarios disponibles:
+  Para el jueves 18 tengo estos bloques libres:
+  1. 9:00 a.m. a 12:00 p.m.
+  2. 3:00 p.m. a 6:00 p.m.
+  ¿Cuál bloque te acomoda, y a qué hora dentro de ese rango? 😊
+
+  Ejemplo con varios días — un encabezado en *negrita* por día, y los rangos
+  de ESE día debajo, nunca todo mezclado en una sola lista ni en un párrafo:
+
+  Estos son los bloques disponibles:
 
   *Martes 15*
-  1. 9:00 a.m.
-  2. 10:00 a.m.
+  9:00 a.m. a 12:00 p.m.
 
   *Miércoles 16*
-  1. 2:00 p.m.
-  2. 3:30 p.m.
+  1. 9:00 a.m. a 11:00 a.m.
+  2. 2:00 p.m. a 6:00 p.m.
 
-  ¿Qué día y horario te queda mejor? Respondeme con el día y el número 😊
-- Cuando el cliente responda con un número, interpretalo como la opción de esa
-  posición en la ÚLTIMA lista que le mostraste — fijate bien cuál era antes de
-  usarlo en una tool. Si mostraste varios días numerados por separado, pedile
-  que te confirme también el día si no quedó claro cuál eligió.
+  ¿Qué día y horario te queda mejor? 😊
+- Cuando el cliente responda con una hora puntual, usala directo en
+  "crear_turno"/"reprogramar_turno" (esas tools validan de nuevo que siga
+  libre) — no hace falta volver a llamar "buscar_disponibilidad" salvo que
+  haya pasado bastante en la conversación o el cliente pida otro día.
 - Emojis con moderación, para dar calidez (😊, 💆, ✨), no en cada palabra.
 
 Tu alcance es EXCLUSIVAMENTE:
@@ -258,7 +267,7 @@ function buildTools(opts: {
   const buscarDisponibilidad = betaZodTool({
     name: "buscar_disponibilidad",
     description:
-      'Devuelve, para un conjunto de servicios, los próximos días con franjas horarias realmente libres (en base a la agenda real: horarios de trabajo, ausencias y turnos ya tomados de TODO el equipo — un horario aparece como libre si al menos una esteticista puede atenderlo, sin decir cuál). No recibe ninguna fecha como parámetro — siempre trae los próximos 10 días con lugar, cada uno con su "fecha" (YYYY-MM-DD) y "diaSemana". Buscá vos, en esa lista, el día que corresponda a lo que pidió el cliente (comparándolo con el calendario de referencia del contexto). Llamar siempre antes de ofrecer un horario.',
+      'Devuelve, para un conjunto de servicios, los próximos días con franjas horarias realmente libres (en base a la agenda real: horarios de trabajo, ausencias y turnos ya tomados de TODO el equipo — un horario aparece como libre si al menos una esteticista puede atenderlo, sin decir cuál). Cada día trae "rangos": bloques continuos ya agrupados (ej. {desde:"09:00", hasta:"12:00"}) — dentro de un rango, CUALQUIER horario que pida el cliente en pasos de 30 minutos está libre, no hace falta desglosarlo. No recibe ninguna fecha como parámetro — siempre trae los próximos 10 días con lugar, cada uno con su "fecha" (YYYY-MM-DD) y "diaSemana". Buscá vos, en esa lista, el día que corresponda a lo que pidió el cliente (comparándolo con el calendario de referencia del contexto). Llamar siempre antes de ofrecer un horario.',
     inputSchema: z.object({
       serviceIds: z.array(z.string()).describe("ids de servicio devueltos por obtener_catalogo"),
     }),
@@ -269,7 +278,7 @@ function buildTools(opts: {
         disponibilidad: result.days.map((d) => ({
           fecha: d.date,
           diaSemana: d.weekday,
-          horarios: d.slots,
+          rangos: d.ranges,
         })),
       });
     },

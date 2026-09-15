@@ -278,7 +278,47 @@ export async function getAvailableSlots(input: {
   return { ok: true, days: results };
 }
 
-export type AvailableDayUnion = { date: string; weekday: string; slots: string[] };
+export type TimeRange = { desde: string; hasta: string };
+export type AvailableDayUnion = { date: string; weekday: string; ranges: TimeRange[] };
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/**
+ * Convierte una lista de horarios sueltos (cada 30 min, cada uno un posible
+ * inicio del servicio) en rangos continuos — "9:00 a 12:00" en vez de
+ * enumerar 9:00, 9:30, 10:00, 10:30, 11:00. Se calcula acá, no se le pide al
+ * modelo que lo infiera de una lista larga: mostró errores reales (saltear
+ * horarios que sí estaban libres, como si "resumiera" a ojo en vez de
+ * agrupar de verdad).
+ *
+ * El "hasta" de cada rango sale de sumarle la DURACIÓN DEL SERVICIO al
+ * último inicio válido (no el paso de 30 min): si el último horario en que
+ * se puede EMPEZAR es 11:00 y el servicio dura 60 min, el bloque real
+ * termina a las 12:00, no a las 11:30 — sumar solo el paso subestimaba la
+ * disponibilidad real en cualquier servicio de más de 30 minutos (que es
+ * casi todos).
+ */
+function collapseToRanges(sortedTimes: string[], serviceDurationMinutes: number): TimeRange[] {
+  const ranges: TimeRange[] = [];
+  let start: string | null = null;
+  let prevMinutes = 0;
+
+  for (let i = 0; i < sortedTimes.length; i++) {
+    const minutes = timeToMinutes(sortedTimes[i]);
+    if (start === null) {
+      start = sortedTimes[i];
+    } else if (minutes - prevMinutes > SLOT_STEP_MINUTES) {
+      ranges.push({ desde: start, hasta: minutesToTime(prevMinutes + serviceDurationMinutes) });
+      start = sortedTimes[i];
+    }
+    prevMinutes = minutes;
+  }
+  if (start !== null) ranges.push({ desde: start, hasta: minutesToTime(prevMinutes + serviceDurationMinutes) });
+  return ranges;
+}
 
 /**
  * Igual que `getAvailableSlots`, pero sin exponer qué profesional está
@@ -292,8 +332,12 @@ export async function getAvailableSlotsUnion(input: {
   fromDateKey?: string;
   days?: number;
 }): Promise<{ ok: true; days: AvailableDayUnion[] } | { ok: false; error: "servicio-invalido" }> {
-  const perProfessional = await getAvailableSlots(input);
+  const [services, perProfessional] = await Promise.all([
+    prisma.service.findMany({ where: { id: { in: input.serviceIds } } }),
+    getAvailableSlots(input),
+  ]);
   if (!perProfessional.ok) return perProfessional;
+  const totalMinutes = services.reduce((sum, s) => sum + s.durationMinutes, 0);
 
   const byDate = new Map<string, { weekday: string; slots: Set<string> }>();
   for (const day of perProfessional.days) {
@@ -304,7 +348,10 @@ export async function getAvailableSlotsUnion(input: {
 
   const days = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, v]) => ({ date, weekday: v.weekday, slots: [...v.slots].sort() }));
+    .map(([date, v]) => {
+      const sorted = [...v.slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+      return { date, weekday: v.weekday, ranges: collapseToRanges(sorted, totalMinutes) };
+    });
   return { ok: true, days };
 }
 
