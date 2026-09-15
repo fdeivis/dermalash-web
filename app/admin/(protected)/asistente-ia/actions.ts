@@ -38,7 +38,7 @@ export async function sendSimulatedMessage(conversationId: string, formData: For
     return;
   }
 
-  await runAssistantTurn(conversationId, data.text, new SimulatedMessagingProvider(conversationId));
+  await runAssistantTurn(conversationId, data.text, new SimulatedMessagingProvider());
 
   revalidatePath(`/admin/asistente-ia/${conversationId}`);
   revalidatePath("/admin/asistente-ia");

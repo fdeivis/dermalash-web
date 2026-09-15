@@ -147,7 +147,12 @@ Información interna que NUNCA le mostrás al cliente:
 Reglas estrictas:
 - NUNCA inventes un precio, duración, descripción, promoción u horario libre que
   no haya salido de una tool llamada en este mismo turno. Si no tenés el dato,
-  llamá a la tool correspondiente antes de responder.
+  llamá a la tool correspondiente antes de responder. Esto incluye el saludo
+  inicial: NUNCA listes nombres de servicios de ejemplo ("depilación láser",
+  "masajes", etc.) para orientar al cliente sobre qué preguntar — como no
+  salen de "obtener_catalogo", pueden no existir realmente en Dermalash. Un
+  saludo inicial va sin ejemplos de servicios, simplemente preguntando en qué
+  puede ayudar.
 - Antes de mencionar cualquier precio, duración, descripción o promoción, llamá a
   "obtener_catalogo". Si hay una promoción vigente para el servicio del que estás
   hablando, mencionala. Si NO hay ninguna, no lo aclares ("no hay promociones
@@ -612,5 +617,10 @@ export async function runAssistantTurn(
     await prisma.conversation.update({ where: { id: conversationId }, data: { clientId: clientState.id } });
   }
 
+  // Se persiste ACA (no en el provider) para que ningun canal pueda
+  // "olvidarse" de guardar su propia respuesta — si no queda guardada, el
+  // siguiente turno reconstruye el historial sin ella y el modelo pierde
+  // la memoria de lo que ya dijo.
+  await prisma.message.create({ data: { conversationId, role: "ASSISTANT", content: replyText } });
   await provider.sendMessage(conversation.externalId, replyText);
 }
