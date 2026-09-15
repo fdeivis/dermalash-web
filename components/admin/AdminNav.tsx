@@ -25,11 +25,13 @@ export function AdminNav({
   canViewEmployees = false,
   canManageAgenda = false,
   canManagePermissions = false,
+  canUseAssistant = false,
 }: {
   alertCount?: number;
   canViewEmployees?: boolean;
   canManageAgenda?: boolean;
   canManagePermissions?: boolean;
+  canUseAssistant?: boolean;
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -53,6 +55,7 @@ export function AdminNav({
           { href: "/admin/logs", label: "Logs" },
         ]
       : []),
+    ...(canUseAssistant ? [{ href: "/admin/asistente-ia", label: "Asistente IA" }] : []),
   ];
 
   useEffect(() => {

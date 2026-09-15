@@ -71,6 +71,13 @@ export const PERMISSION_MODULES = [
       { key: "sesiones.eliminar", label: "Eliminar facturas registradas" },
     ],
   },
+  {
+    key: "asistente_ia",
+    label: "Asistente de WhatsApp (IA)",
+    permissions: [
+      { key: "asistente_ia.chat", label: "Usar el chat de prueba y ver conversaciones" },
+    ],
+  },
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_MODULES)[number]["permissions"][number]["key"];

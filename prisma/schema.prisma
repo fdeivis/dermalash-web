@@ -78,6 +78,28 @@ enum AlertType {
   TURNO_MODIFICADO
   TURNO_CANCELADO
   TURNO_BORRADO
+  CONSULTA_DERIVADA
+}
+
+// MVP4: canal de una conversación con el asistente de IA. SIMULATED = chat
+// de prueba dentro del admin; WHATSAPP = mensaje real vía Meta Cloud API.
+// El resto del sistema (loop del agente, historial, alertas) nunca pregunta
+// en qué canal está — así no hace falta rediseñar nada al conectar
+// WhatsApp real.
+enum ConversationChannel {
+  SIMULATED
+  WHATSAPP
+}
+
+enum ConversationStatus {
+  ACTIVE
+  NEEDS_HUMAN
+  CLOSED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
 }
 
 enum PaymentMethod {
@@ -214,6 +236,36 @@ model Employee {
   updatedAt     DateTime               @updatedAt
 }
 
+// MVP4: una conversación por número/canal con el asistente de IA.
+// `externalId` es lo único específico del canal: el wa_id (teléfono E.164)
+// en WhatsApp real, o un id sintético ("sim:<algo>") en el chat de prueba.
+model Conversation {
+  id            String              @id @default(cuid())
+  channel       ConversationChannel
+  externalId    String
+  client        Client?             @relation(fields: [clientId], references: [id])
+  clientId      String?
+  status        ConversationStatus  @default(ACTIVE)
+  lastMessageAt DateTime            @default(now())
+  createdAt     DateTime            @default(now())
+  messages      Message[]
+
+  @@unique([channel, externalId])
+  @@index([clientId])
+  @@index([status, lastMessageAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+  role           MessageRole
+  content        String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
 model EmployeeSalaryPeriod {
   id         String    @id @default(cuid())
   employee   Employee  @relation(fields: [employeeId], references: [id])
@@ -242,6 +294,7 @@ model Client {
   attachments     ClientAttachment[]
   sessions        ClientSession[]
   appointments    Appointment[]
+  conversations   Conversation[]
   createdByUserId String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt

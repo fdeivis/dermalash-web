@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAgendaManager, requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 import { createAlert } from "@/lib/alerts";
-import { hasOverlap, isWithinSchedule, getTimeOffForDay, fromPeruParts, peruParts } from "@/lib/scheduling";
+import { peruParts } from "@/lib/scheduling";
+import { createAppointmentCore, rescheduleAppointmentCore, cancelAppointmentCore } from "@/lib/appointments/service";
 
 const appointmentSchema = z.object({
   clientId: z.string().min(1, "Seleccioná un cliente"),
@@ -19,27 +20,9 @@ const appointmentSchema = z.object({
   force: z.boolean().optional(),
 });
 
-// `date`/`startTime` vienen pensados en hora de Perú (lo que tipeó/eligió la
-// persona), por eso pasan por fromPeruParts en vez de un new Date()/setHours
-// directo, que interpretaría la hora en el huso del servidor (UTC en
-// Vercel) y la correría 5 horas.
-function buildRange(date: string, startTime: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const [h, m] = startTime.split(":").map(Number);
-  return fromPeruParts(year, month, day, h, m);
-}
-
 function dateKeyOf(date: Date) {
   const { year, month, day } = peruParts(date);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-async function resolveServicesAndEnd(serviceIds: string[], startAt: Date) {
-  const services = await prisma.service.findMany({ where: { id: { in: serviceIds } } });
-  if (services.length !== serviceIds.length) throw new Error("Servicio inválido");
-  const totalMinutes = services.reduce((sum, s) => sum + s.durationMinutes, 0);
-  const endAt = new Date(startAt.getTime() + totalMinutes * 60_000);
-  return { services, endAt };
 }
 
 function parseAppointmentForm(formData: FormData) {
@@ -53,6 +36,13 @@ function parseAppointmentForm(formData: FormData) {
     force: formData.get("force") === "on",
   });
 }
+
+const ERROR_REDIRECT: Record<string, string> = {
+  feriado: "feriado",
+  "fuera-de-horario": "fuera-de-horario",
+  solapado: "solapado",
+  "servicio-invalido": "servicio-invalido",
+};
 
 export async function createAppointment(formData: FormData) {
   const session = await requireAgendaManager();
@@ -75,15 +65,7 @@ export async function createAppointment(formData: FormData) {
     formData.getAll("serviceIds").forEach((id) => params.append("serviceIds", String(id)));
     redirect(`/admin/agenda/nuevo?${params}`);
   }
-  const startAt = buildRange(data.date, data.startTime);
-  const { services, endAt } = await resolveServicesAndEnd(data.serviceIds, startAt);
 
-  const dayOfWeek = peruParts(startAt).weekday;
-  const [schedule, timeOff] = await Promise.all([
-    prisma.schedule.findMany({ where: { adminUserId: data.professionalId, dayOfWeek } }),
-    getTimeOffForDay(data.professionalId, startAt, endAt),
-  ]);
-  const withinSchedule = isWithinSchedule(schedule, startAt, endAt);
   // Se preservan cliente y servicios en el redirect de error para no obligar
   // a recargarlos: solo cambia lo que efectivamente falló (horario/profesional).
   const redirectParams = new URLSearchParams({
@@ -93,31 +75,25 @@ export async function createAppointment(formData: FormData) {
     clientId: data.clientId,
   });
   data.serviceIds.forEach((id) => redirectParams.append("serviceIds", id));
-  if (timeOff && !data.force) {
-    redirect(`/admin/agenda/nuevo?error=feriado&${redirectParams}`);
-  }
-  if (!withinSchedule && !data.force) {
-    redirect(`/admin/agenda/nuevo?error=fuera-de-horario&${redirectParams}`);
-  }
 
-  if (await hasOverlap(data.professionalId, startAt, endAt)) {
-    redirect(`/admin/agenda/nuevo?error=solapado&${redirectParams}`);
-  }
-
-  const appointment = await prisma.appointment.create({
-    data: {
-      clientId: data.clientId,
-      professionalId: data.professionalId,
-      startAt,
-      endAt,
-      notes: data.notes,
-      forcedOutsideSchedule: !withinSchedule || Boolean(timeOff),
-      createdByUserId: session.user.id,
-      services: { create: services.map((s) => ({ serviceId: s.id })) },
-    },
-    include: { client: true },
+  const result = await createAppointmentCore({
+    clientId: data.clientId,
+    professionalId: data.professionalId,
+    serviceIds: data.serviceIds,
+    date: data.date,
+    startTime: data.startTime,
+    notes: data.notes,
+    createdByUserId: session.user.id,
+    source: "MANUAL",
+    allowForce: data.force,
   });
 
+  if (!result.ok) {
+    const errorKey = ERROR_REDIRECT[result.error] ?? "datos-invalidos";
+    redirect(`/admin/agenda/nuevo?error=${errorKey}&${redirectParams}`);
+  }
+
+  const { appointment } = result;
   await logAction(session, "turno.crear", "Appointment", appointment.id, appointment.client.firstName);
   await createAlert(
     "TURNO_CREADO",
@@ -144,54 +120,34 @@ export async function rescheduleAppointment(id: string, formData: FormData) {
   });
   const force = formData.get("force") === "on";
 
-  const existing = await prisma.appointment.findUniqueOrThrow({
-    where: { id },
-    include: { services: { include: { service: true } }, client: true, session: true },
+  const before = await prisma.appointment.findUniqueOrThrow({ where: { id }, include: { client: true } });
+
+  const result = await rescheduleAppointmentCore(id, {
+    professionalId: data.professionalId,
+    date: data.date,
+    startTime: data.startTime,
+    allowForce: force,
   });
-  if (existing.status === "ATENDIDO") {
-    throw new Error("No se puede reprogramar un turno ya atendido");
+
+  if (!result.ok) {
+    if (result.error === "turno-atendido") {
+      throw new Error("No se puede reprogramar un turno ya atendido");
+    }
+    const errorKey = ERROR_REDIRECT[result.error] ?? "datos-invalidos";
+    redirect(`/admin/agenda/${id}?error=${errorKey}`);
   }
 
-  const startAt = buildRange(data.date, data.startTime);
-  const totalMinutes = existing.services.reduce((sum, l) => sum + l.service.durationMinutes, 0);
-  const endAt = new Date(startAt.getTime() + totalMinutes * 60_000);
-
-  const dayOfWeek = peruParts(startAt).weekday;
-  const [schedule, timeOff] = await Promise.all([
-    prisma.schedule.findMany({ where: { adminUserId: data.professionalId, dayOfWeek } }),
-    getTimeOffForDay(data.professionalId, startAt, endAt),
-  ]);
-  const withinSchedule = isWithinSchedule(schedule, startAt, endAt);
-  if (timeOff && !force) {
-    redirect(`/admin/agenda/${id}?error=feriado`);
-  }
-  if (!withinSchedule && !force) {
-    redirect(`/admin/agenda/${id}?error=fuera-de-horario`);
-  }
-  if (await hasOverlap(data.professionalId, startAt, endAt, id)) {
-    redirect(`/admin/agenda/${id}?error=solapado`);
-  }
-
-  await prisma.appointment.update({
-    where: { id },
-    data: {
-      professionalId: data.professionalId,
-      startAt,
-      endAt,
-      status: existing.status === "RESERVADO" ? "RESERVADO" : "CONFIRMADO",
-      forcedOutsideSchedule: !withinSchedule || Boolean(timeOff),
-    },
-  });
+  const { appointment } = result;
   await logAction(
     session,
     "turno.reprogramar",
     "Appointment",
     id,
-    `${existing.startAt.toISOString()} -> ${startAt.toISOString()}`
+    `${before.startAt.toISOString()} -> ${appointment.startAt.toISOString()}`
   );
   await createAlert(
     "TURNO_MODIFICADO",
-    `Turno de ${existing.client.firstName} ${existing.client.lastName} reprogramado`,
+    `Turno de ${before.client.firstName} ${before.client.lastName} reprogramado`,
     id
   );
 
@@ -203,27 +159,21 @@ export async function cancelAppointment(id: string, formData: FormData) {
   const session = await requireAgendaManager();
   const reason = String(formData.get("cancelReason") || "").slice(0, 500);
 
-  const existing = await prisma.appointment.findUniqueOrThrow({
-    where: { id },
-    include: { client: true, session: true },
-  });
-  if (existing.session) {
+  const result = await cancelAppointmentCore(id, { reason });
+  if (!result.ok) {
     throw new Error("No se puede cancelar un turno que ya tiene una factura registrada");
   }
+  const { appointment } = result;
 
-  await prisma.appointment.update({
-    where: { id },
-    data: { status: "CANCELADO", cancelReason: reason || undefined },
-  });
   await logAction(session, "turno.cancelar", "Appointment", id, reason || undefined);
   await createAlert(
     "TURNO_CANCELADO",
-    `Turno de ${existing.client.firstName} ${existing.client.lastName} cancelado`,
+    `Turno de ${appointment.client.firstName} ${appointment.client.lastName} cancelado`,
     id
   );
 
   revalidatePath("/admin/agenda");
-  redirect(`/admin/agenda?date=${dateKeyOf(existing.startAt)}`);
+  redirect(`/admin/agenda?date=${dateKeyOf(appointment.startAt)}`);
 }
 
 export async function markNoShow(id: string) {
