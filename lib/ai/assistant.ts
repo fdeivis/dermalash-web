@@ -16,6 +16,7 @@ import {
 import { createAlert } from "@/lib/alerts";
 import { getSystemAssistantUserId } from "@/lib/ai/systemUser";
 import type { MessagingProvider } from "@/lib/messaging/provider";
+import { WhatsAppCloudProvider } from "@/lib/messaging/whatsappCloud";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 const MAX_HISTORY_MESSAGES = 30;
@@ -226,6 +227,30 @@ async function resolveClientByWhatsapp(externalId: string): Promise<string | nul
     return byPhone.id;
   }
   return null;
+}
+
+/**
+ * Ademas de la alerta pasiva en el panel, se le avisa al equipo por WhatsApp
+ * en el momento — la bandeja de alertas solo se ve si alguien entra a
+ * mirarla, y una consulta derivada a un humano es por definicion algo que el
+ * cliente esta esperando que se resuelva pronto.
+ */
+async function notifyStaffHandoff(motivo: string): Promise<void> {
+  const staffNumbers = (process.env.WHATSAPP_ALERT_NUMBERS || "")
+    .split(",")
+    .map((n) => n.trim())
+    .filter(Boolean);
+  if (staffNumbers.length === 0) return;
+
+  const provider = new WhatsAppCloudProvider();
+  const text = `Un cliente necesita atencion humana en el asistente de WhatsApp:\n${motivo}`;
+  await Promise.all(
+    staffNumbers.map((number) =>
+      provider.sendMessage(number, text).catch((error) => {
+        console.error(`No se pudo avisar por WhatsApp a ${number}:`, error);
+      })
+    )
+  );
 }
 
 function buildTools(opts: {
@@ -519,6 +544,7 @@ function buildTools(opts: {
         data: { status: "NEEDS_HUMAN" },
       });
       await createAlert("CONSULTA_DERIVADA", `Conversación de WhatsApp derivada a un humano: ${input.motivo}`, undefined, "WHATSAPP");
+      await notifyStaffHandoff(input.motivo);
       return JSON.stringify({ ok: true });
     },
   });

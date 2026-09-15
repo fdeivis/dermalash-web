@@ -52,14 +52,25 @@ export default async function ConversacionPage({ params }: { params: Promise<{ i
             </div>
           </div>
         ))}
-        {conversation.messages.length === 0 && (
+        {conversation.messages.length === 0 && conversation.channel === "SIMULATED" && (
           <p className="text-center text-sm text-brand-muted">Escribí el primer mensaje como si fueras el cliente.</p>
+        )}
+        {conversation.messages.length === 0 && conversation.channel === "WHATSAPP" && (
+          <p className="text-center text-sm text-brand-muted">Todavía no hay mensajes en esta conversación.</p>
         )}
       </div>
 
-      <div className="max-w-xl">
-        <SimulatedChatForm action={sendSimulatedMessage.bind(null, conversation.id)} />
-      </div>
+      {conversation.channel === "SIMULATED" && (
+        <div className="max-w-xl">
+          <SimulatedChatForm action={sendSimulatedMessage.bind(null, conversation.id)} />
+        </div>
+      )}
+      {conversation.channel === "WHATSAPP" && (
+        <p className="mt-4 max-w-xl text-sm text-brand-muted">
+          Esta es una conversación real de WhatsApp — es de solo lectura acá. Para responder, escribile
+          directo desde WhatsApp al cliente.
+        </p>
+      )}
     </div>
   );
 }
