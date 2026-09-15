@@ -5,7 +5,7 @@ import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 // zod v3 clásico para validar FormData, sin relación con esto.
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
-import { peruToday, peruParts, professionalLabel, addDaysUTC, fromPeruParts } from "@/lib/scheduling";
+import { peruToday, peruParts, professionalLabel, addDaysUTC, fromPeruParts, endOfDay } from "@/lib/scheduling";
 import {
   createAppointmentCore,
   rescheduleAppointmentCore,
@@ -132,11 +132,16 @@ function buildTools(opts: {
       "Devuelve los servicios publicados y las promociones vigentes hoy, con precios y duraciones reales. Llamar siempre antes de mencionar cualquier precio, duración o promoción — nunca inventar esos datos.",
     inputSchema: z.object({}),
     run: async () => {
+      // Mismo criterio que ya usa el resto del sitio (ej. sesiones/nuevo)
+      // para "promoción vigente hoy": comparar contra el día completo de
+      // Perú, no contra un instante exacto — si no, una promo cuyo
+      // startDate/endDate se guardó como medianoche UTC puede quedar
+      // afuera por unas horas de diferencia de huso horario.
       const today = peruToday();
       const [services, promotions] = await Promise.all([
         prisma.service.findMany({ where: { status: "PUBLISHED" }, orderBy: { order: "asc" } }),
         prisma.promotion.findMany({
-          where: { status: "PUBLISHED", startDate: { lte: today }, endDate: { gte: today } },
+          where: { status: "PUBLISHED", startDate: { lte: endOfDay(today) }, endDate: { gte: today } },
           include: { services: true },
         }),
       ]);
