@@ -76,23 +76,41 @@ Formato de los mensajes (son de WhatsApp, no un documento):
   servicio) — así se ve en negrita en WhatsApp. No uses markdown de otro tipo
   (nada de **doble asterisco**, headers con #, ni tablas).
 - Cuando el cliente tiene que elegir entre varias opciones (horarios, servicios,
-  días), usá SIEMPRE una lista numerada, un renglón por opción — nunca los
-  enumeres seguidos en una misma oración ni uses solo guiones sueltos. Después de
-  la lista, invitalo a responder con el número de la opción que prefiera (es más
-  rápido para el cliente que escribir la hora entera). Ejemplo:
+  días), es OBLIGATORIO usar una lista numerada, cada opción en SU PROPIO
+  renglón, con un salto de línea real entre cada una. Esto es una regla dura, no
+  una sugerencia: JAMÁS escribas los horarios seguidos dentro de una misma
+  oración o párrafo (ej. nunca "tengo 9:00, 9:30, 10:00 y 10:30" todo junto) —
+  ni siquiera para ahorrar espacio. Cada número va en su propia línea, siempre,
+  sin excepción, aunque sean solo 2 opciones. Después de la lista, invitalo a
+  responder con el número (es más rápido que escribir la hora entera).
 
-  Estos son los horarios que tengo disponibles el jueves 18:
+  Ejemplo con un solo día:
+
+  Para el jueves 18 tengo estos horarios:
   1. 9:00 a.m.
   2. 10:30 a.m.
   3. 3:00 p.m.
   ¿Cuál te queda mejor? Respondeme con el número 😊
 
-  Si hay varios días con horarios, agrupá por día (el día como encabezado en
-  *negrita*, y la lista numerada de horarios de ese día debajo), no todo junto en
-  una sola lista sin separar.
+  Ejemplo con varios días — un encabezado en *negrita* por día, y la lista
+  numerada de ESE día debajo (reiniciando la numeración en cada día), nunca todo
+  mezclado en una sola lista larga ni en un párrafo:
+
+  Estos son los horarios disponibles:
+
+  *Martes 15*
+  1. 9:00 a.m.
+  2. 10:00 a.m.
+
+  *Miércoles 16*
+  1. 2:00 p.m.
+  2. 3:30 p.m.
+
+  ¿Qué día y horario te queda mejor? Respondeme con el día y el número 😊
 - Cuando el cliente responda con un número, interpretalo como la opción de esa
   posición en la ÚLTIMA lista que le mostraste — fijate bien cuál era antes de
-  usarlo en una tool.
+  usarlo en una tool. Si mostraste varios días numerados por separado, pedile
+  que te confirme también el día si no quedó claro cuál eligió.
 - Emojis con moderación, para dar calidez (😊, 💆, ✨), no en cada palabra.
 
 Tu alcance es EXCLUSIVAMENTE:
@@ -145,9 +163,13 @@ Reglas estrictas:
 - Si una tool de escritura falla, no reintentes con los mismos datos: explicá el
   motivo (en términos simples, nunca técnicos) y ofrecé una alternativa.
 - Para agendar, reprogramar, cancelar o consultar turnos, primero necesitás saber
-  quién es el cliente: si no lo identificaste todavía, pedí nombre y apellido y
-  llamá a "identificar_o_crear_cliente" — nunca asumas que ya lo tenés identificado
-  solo porque te lo dijo, hasta que la tool confirme.
+  quién es el cliente: si no lo identificaste todavía, pedí nombre, apellido Y
+  número de documento de identidad (DNI o carné de extranjería) EN LA MISMA
+  pregunta, y llamá a "identificar_o_crear_cliente" con los tres datos — el
+  documento es lo único que evita crear un cliente duplicado cuando hay más de
+  una persona con el mismo nombre, así que es obligatorio, no opcional. Nunca
+  asumas que ya lo tenés identificado solo porque te dijo el nombre, hasta que la
+  tool confirme.
 - Si "identificar_o_crear_cliente" devuelve "varios-clientes-mismo-nombre", hay más
   de una persona con ese nombre y no podés adivinar cuál es sin arriesgarte a
   mezclar el historial de dos clientes distintos: derivá directo a un humano con
@@ -282,46 +304,74 @@ function buildTools(opts: {
   const identificarOCrearCliente = betaZodTool({
     name: "identificar_o_crear_cliente",
     description:
-      "Busca al cliente por nombre y apellido y, si no existe, lo registra. Llamar solo después de pedirle nombre y apellido. Siempre busca coincidencias antes de crear uno nuevo, para no duplicar el historial de alguien que ya es cliente.",
+      "Busca al cliente por documento de identidad (prioridad) o por nombre y apellido, y si no existe lo registra. Llamar solo después de pedirle nombre, apellido Y número de documento (DNI o carné de extranjería) — el documento es lo que evita crear un cliente duplicado cuando hay más de una persona con el mismo nombre.",
     inputSchema: z.object({
       nombre: z.string().min(1),
       apellido: z.string().min(1),
+      documentoIdentidad: z.string().min(1).describe("DNI o carné de extranjería, tal cual lo dio el cliente"),
     }),
     run: async (input) => {
-      // Buscar por nombre antes de crear: en el chat simulado (y en
-      // WhatsApp real, si alguien escribe desde un número nuevo) el cliente
-      // puede ya existir con otro número/canal — crear de una sin buscar
-      // duplicaba a alguien que ya tenía turnos e historial.
-      const matches = await prisma.client.findMany({
+      // El documento es la clave confiable: si ya existe alguien con ese
+      // documento, es la misma persona sin importar variaciones en el
+      // nombre (apodos, con/sin segundo nombre, tildes distintas).
+      const byDocument = await prisma.client.findFirst({
+        where: { documentId: input.documentoIdentidad },
+      });
+      if (byDocument) {
+        if (!byDocument.whatsapp) {
+          await prisma.client.update({ where: { id: byDocument.id }, data: { whatsapp: externalId } });
+        }
+        clientState.id = byDocument.id;
+        return JSON.stringify({ ok: true, clientId: byDocument.id, encontrado: true });
+      }
+
+      // Sin coincidencia por documento, se busca por nombre — pero el
+      // documento sigue siendo el criterio final para no confundir a dos
+      // personas con el mismo nombre.
+      const nameMatches = await prisma.client.findMany({
         where: {
           firstName: { equals: input.nombre, mode: "insensitive" },
           lastName: { equals: input.apellido, mode: "insensitive" },
         },
       });
 
-      if (matches.length === 1) {
-        // Se vincula el whatsapp de este canal al cliente encontrado, para
-        // que la próxima vez ya lo identifique directo por teléfono.
-        if (!matches[0].whatsapp) {
-          await prisma.client.update({ where: { id: matches[0].id }, data: { whatsapp: externalId } });
+      // De los que coinciden en nombre, solo sirve uno que no tenga ya
+      // OTRO documento cargado (si ya tiene uno distinto, es una persona
+      // distinta que casualmente se llama igual).
+      const compatible = nameMatches.filter((c) => !c.documentId || c.documentId === input.documentoIdentidad);
+
+      if (compatible.length === 1) {
+        if (!compatible[0].whatsapp || !compatible[0].documentId) {
+          await prisma.client.update({
+            where: { id: compatible[0].id },
+            data: {
+              whatsapp: compatible[0].whatsapp ?? externalId,
+              documentId: compatible[0].documentId ?? input.documentoIdentidad,
+            },
+          });
         }
-        clientState.id = matches[0].id;
-        return JSON.stringify({ ok: true, clientId: matches[0].id, encontrado: true });
+        clientState.id = compatible[0].id;
+        return JSON.stringify({ ok: true, clientId: compatible[0].id, encontrado: true });
       }
 
-      if (matches.length > 1) {
-        // Más de una persona con el mismo nombre: no se puede adivinar cuál
-        // es sin arriesgarse a mezclar el historial de dos clientes
-        // distintos. Se le pide al modelo un dato más para desambiguar.
+      if (compatible.length > 1) {
+        // Mismo nombre y ninguno tiene el documento cargado todavía: no se
+        // puede saber cuál es sin arriesgarse a mezclar historiales.
         return JSON.stringify({ error: "varios-clientes-mismo-nombre" });
       }
 
+      // Nadie compatible por nombre tampoco: es un cliente nuevo de
+      // verdad (aunque haya otros con ese documento... no, eso ya se
+      // descartó arriba; y si hay otros con ese nombre pero con OTRO
+      // documento, son personas distintas — se crea aparte).
       const systemUserId = await getSystemAssistantUserId();
       const client = await prisma.client.create({
         data: {
           firstName: input.nombre,
           lastName: input.apellido,
+          documentId: input.documentoIdentidad,
           whatsapp: externalId,
+          source: "WHATSAPP",
           createdByUserId: systemUserId,
         },
       });
