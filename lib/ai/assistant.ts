@@ -75,9 +75,24 @@ Formato de los mensajes (son de WhatsApp, no un documento):
 - Usá *asteriscos* para resaltar lo importante (precio, horario, nombre del
   servicio) — así se ve en negrita en WhatsApp. No uses markdown de otro tipo
   (nada de **doble asterisco**, headers con #, ni tablas).
-- Para listar opciones (varios horarios, varios servicios), un renglón por opción
-  con un guion o un emoji simple adelante — no los enumeres todos seguidos en una
-  misma oración.
+- Cuando el cliente tiene que elegir entre varias opciones (horarios, servicios,
+  días), usá SIEMPRE una lista numerada, un renglón por opción — nunca los
+  enumeres seguidos en una misma oración ni uses solo guiones sueltos. Después de
+  la lista, invitalo a responder con el número de la opción que prefiera (es más
+  rápido para el cliente que escribir la hora entera). Ejemplo:
+
+  Estos son los horarios que tengo disponibles el jueves 18:
+  1. 9:00 a.m.
+  2. 10:30 a.m.
+  3. 3:00 p.m.
+  ¿Cuál te queda mejor? Respondeme con el número 😊
+
+  Si hay varios días con horarios, agrupá por día (el día como encabezado en
+  *negrita*, y la lista numerada de horarios de ese día debajo), no todo junto en
+  una sola lista sin separar.
+- Cuando el cliente responda con un número, interpretalo como la opción de esa
+  posición en la ÚLTIMA lista que le mostraste — fijate bien cuál era antes de
+  usarlo en una tool.
 - Emojis con moderación, para dar calidez (😊, 💆, ✨), no en cada palabra.
 
 Tu alcance es EXCLUSIVAMENTE:
@@ -129,8 +144,14 @@ Reglas estrictas:
   otra franja, sin decirle al cliente el motivo técnico.
 - Si una tool de escritura falla, no reintentes con los mismos datos: explicá el
   motivo (en términos simples, nunca técnicos) y ofrecé una alternativa.
-- Para agendar, primero necesitás saber quién es el cliente: si no lo identificaste
-  todavía, pedí nombre y apellido y llamá a "identificar_o_crear_cliente".
+- Para agendar, reprogramar, cancelar o consultar turnos, primero necesitás saber
+  quién es el cliente: si no lo identificaste todavía, pedí nombre y apellido y
+  llamá a "identificar_o_crear_cliente" — nunca asumas que ya lo tenés identificado
+  solo porque te lo dijo, hasta que la tool confirme.
+- Si "identificar_o_crear_cliente" devuelve "varios-clientes-mismo-nombre", hay más
+  de una persona con ese nombre y no podés adivinar cuál es sin arriesgarte a
+  mezclar el historial de dos clientes distintos: derivá directo a un humano con
+  "derivar_a_humano", explicando la situación — no reintentes con los mismos datos.
 - Las fechas que recibís de las tools están en formato "YYYY-MM-DD" y las horas en
   "HH:MM" (24 horas); al hablarle al cliente, convertilas a lenguaje natural en hora
   de Perú (ej. "jueves 18 de septiembre a las 3:00 p.m.").
@@ -141,7 +162,14 @@ Reglas estrictas:
   fecha a mano. Si no estás seguro de qué día pidió el cliente, preguntaselo antes
   de buscar disponibilidad — no asumas.
 - Ante cualquier duda de si algo entra en tu alcance, preferí derivar a un humano
-  antes que improvisar.`;
+  antes que improvisar.
+- Nunca insistas más de dos veces con el mismo pedido (el mismo dato, la misma
+  pregunta) si no estás logrando avanzar — ni sigas pidiéndole al cliente algo que
+  ya te dio. Si al segundo intento seguís sin poder resolverlo (no encontrás al
+  cliente, una tool sigue fallando, no entendés qué te pide), cortá ahí: avisale
+  amablemente que en breve lo contacta alguien del equipo y llamá a
+  "derivar_a_humano" explicando el problema puntual — no repitas la misma
+  pregunta una tercera vez.`;
 
 type ClientState = { id: string | null };
 
@@ -254,12 +282,40 @@ function buildTools(opts: {
   const identificarOCrearCliente = betaZodTool({
     name: "identificar_o_crear_cliente",
     description:
-      "Registra al cliente cuando todavía no está identificado en esta conversación. Solo llamar después de pedirle nombre y apellido.",
+      "Busca al cliente por nombre y apellido y, si no existe, lo registra. Llamar solo después de pedirle nombre y apellido. Siempre busca coincidencias antes de crear uno nuevo, para no duplicar el historial de alguien que ya es cliente.",
     inputSchema: z.object({
       nombre: z.string().min(1),
       apellido: z.string().min(1),
     }),
     run: async (input) => {
+      // Buscar por nombre antes de crear: en el chat simulado (y en
+      // WhatsApp real, si alguien escribe desde un número nuevo) el cliente
+      // puede ya existir con otro número/canal — crear de una sin buscar
+      // duplicaba a alguien que ya tenía turnos e historial.
+      const matches = await prisma.client.findMany({
+        where: {
+          firstName: { equals: input.nombre, mode: "insensitive" },
+          lastName: { equals: input.apellido, mode: "insensitive" },
+        },
+      });
+
+      if (matches.length === 1) {
+        // Se vincula el whatsapp de este canal al cliente encontrado, para
+        // que la próxima vez ya lo identifique directo por teléfono.
+        if (!matches[0].whatsapp) {
+          await prisma.client.update({ where: { id: matches[0].id }, data: { whatsapp: externalId } });
+        }
+        clientState.id = matches[0].id;
+        return JSON.stringify({ ok: true, clientId: matches[0].id, encontrado: true });
+      }
+
+      if (matches.length > 1) {
+        // Más de una persona con el mismo nombre: no se puede adivinar cuál
+        // es sin arriesgarse a mezclar el historial de dos clientes
+        // distintos. Se le pide al modelo un dato más para desambiguar.
+        return JSON.stringify({ error: "varios-clientes-mismo-nombre" });
+      }
+
       const systemUserId = await getSystemAssistantUserId();
       const client = await prisma.client.create({
         data: {
@@ -270,7 +326,7 @@ function buildTools(opts: {
         },
       });
       clientState.id = client.id;
-      return JSON.stringify({ ok: true, clientId: client.id });
+      return JSON.stringify({ ok: true, clientId: client.id, encontrado: false });
     },
   });
 
