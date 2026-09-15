@@ -6,6 +6,15 @@ import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteClient } from "./actions";
 
+const SOURCE_LABEL: Record<string, string> = {
+  WHATSAPP: "WhatsApp",
+  INSTAGRAM: "Instagram",
+  FACEBOOK: "Facebook",
+  REFERIDO: "Referido",
+  PRESENCIAL: "Presencial",
+  OTRO: "Otro",
+};
+
 export default async function AdminClientesPage({
   searchParams,
 }: {
@@ -46,6 +55,12 @@ export default async function AdminClientesPage({
           No se puede eliminar: este cliente ya tiene facturas registradas.
         </p>
       )}
+      {error === "tiene-turnos" && (
+        <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          No se puede eliminar: este cliente tiene turnos registrados (aunque estén cancelados).
+          Cancelá y borrá el turno desde la Agenda primero si de verdad hace falta eliminar al cliente.
+        </p>
+      )}
 
       <form className="mt-4 flex gap-2" action="/admin/clientes">
         <input
@@ -70,6 +85,7 @@ export default async function AdminClientesPage({
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Teléfono</th>
               <th className="px-4 py-3">Documento</th>
+              <th className="px-4 py-3">Origen</th>
               <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
@@ -81,6 +97,7 @@ export default async function AdminClientesPage({
                 </td>
                 <td className="px-4 py-3">{client.phone ?? "—"}</td>
                 <td className="px-4 py-3">{client.documentId ?? "—"}</td>
+                <td className="px-4 py-3">{SOURCE_LABEL[client.source ?? ""] ?? "—"}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/admin/clientes/${client.id}`}>
@@ -106,7 +123,7 @@ export default async function AdminClientesPage({
             ))}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-brand-muted">
+                <td colSpan={5} className="px-4 py-8 text-center text-brand-muted">
                   {q
                     ? "No se encontraron clientes con esa búsqueda."
                     : "Todavía no hay clientes cargados."}

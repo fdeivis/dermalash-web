@@ -1,6 +1,15 @@
 import type { Client } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 
+const SOURCE_OPTIONS = [
+  ["WHATSAPP", "WhatsApp"],
+  ["INSTAGRAM", "Instagram"],
+  ["FACEBOOK", "Facebook"],
+  ["REFERIDO", "Referido"],
+  ["PRESENCIAL", "Presencial"],
+  ["OTRO", "Otro"],
+];
+
 function toDateInputValue(date?: Date | null) {
   if (!date) return "";
   return date.toISOString().slice(0, 10);
@@ -102,6 +111,22 @@ export function ClientForm({
             className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium">¿De dónde llegó?</label>
+        <select
+          name="source"
+          defaultValue={client?.source ?? ""}
+          className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+        >
+          <option value="">Sin especificar</option>
+          {SOURCE_OPTIONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

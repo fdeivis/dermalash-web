@@ -20,6 +20,7 @@ const clientSchema = z.object({
     .regex(/^\d{9,12}$/, "El WhatsApp debe tener entre 9 y 12 dígitos, sin espacios ni símbolos")
     .optional(),
   email: z.string().email("Email inválido").optional(),
+  source: z.enum(["WHATSAPP", "INSTAGRAM", "FACEBOOK", "REFERIDO", "PRESENCIAL", "OTRO"]).optional(),
   notes: z.string().max(2000, "Máximo 2000 caracteres").optional(),
   healthNotes: z.string().max(5000, "Máximo 5000 caracteres").optional(),
 });
@@ -34,6 +35,7 @@ function parseFormData(formData: FormData) {
     phone: formData.get("phone") || undefined,
     whatsapp: formData.get("whatsapp") || undefined,
     email: formData.get("email") || undefined,
+    source: formData.get("source") || undefined,
     notes: formData.get("notes") || undefined,
     healthNotes: formData.get("healthNotes") || undefined,
   });
@@ -70,6 +72,13 @@ export async function deleteClient(id: string) {
   const sessionCount = await prisma.clientSession.count({ where: { clientId: id } });
   if (sessionCount > 0) {
     redirect("/admin/clientes?error=tiene-sesiones");
+  }
+  // Appointment.clientId no permite ON DELETE (RESTRICT): sin este chequeo,
+  // borrar un cliente con turnos (aunque estén cancelados) tira un error de
+  // base de datos sin capturar en vez de este mensaje.
+  const appointmentCount = await prisma.appointment.count({ where: { clientId: id } });
+  if (appointmentCount > 0) {
+    redirect("/admin/clientes?error=tiene-turnos");
   }
 
   const client = await prisma.client.findUniqueOrThrow({ where: { id } });

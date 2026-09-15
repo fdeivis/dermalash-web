@@ -23,6 +23,15 @@ const SEX_LABEL: Record<string, string> = {
   OTRO: "Otro",
 };
 
+const SOURCE_LABEL: Record<string, string> = {
+  WHATSAPP: "WhatsApp",
+  INSTAGRAM: "Instagram",
+  FACEBOOK: "Facebook",
+  REFERIDO: "Referido",
+  PRESENCIAL: "Presencial",
+  OTRO: "Otro",
+};
+
 export default async function VerClientePage({
   params,
 }: {
@@ -90,6 +99,10 @@ export default async function VerClientePage({
         <div className="flex justify-between gap-4">
           <dt className="text-brand-muted">Email</dt>
           <dd>{client.email ?? "—"}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-brand-muted">¿De dónde llegó?</dt>
+          <dd>{client.source ? (SOURCE_LABEL[client.source] ?? client.source) : "—"}</dd>
         </div>
         {client.notes && (
           <div>

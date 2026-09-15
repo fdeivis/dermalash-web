@@ -279,6 +279,18 @@ model EmployeeSalaryPeriod {
   @@index([employeeId, validFrom])
 }
 
+// De dónde llegó el cliente por primera vez (para saber qué canal de
+// captación funciona mejor). WHATSAPP se marca solo cuando lo crea el
+// asistente de IA; el resto lo elige quien lo carga a mano en el admin.
+enum ClientSource {
+  WHATSAPP
+  INSTAGRAM
+  FACEBOOK
+  REFERIDO
+  PRESENCIAL
+  OTRO
+}
+
 model Client {
   id              String             @id @default(cuid())
   firstName       String
@@ -289,6 +301,7 @@ model Client {
   phone           String?
   whatsapp        String?
   email           String?
+  source          ClientSource?
   notes           String?
   healthNotes     String?
   attachments     ClientAttachment[]
