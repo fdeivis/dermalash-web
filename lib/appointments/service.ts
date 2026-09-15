@@ -367,8 +367,13 @@ export async function findAvailableProfessional(input: {
 }): Promise<{ professionalId: string; professionalName: string } | null> {
   const result = await getAvailableSlots({ serviceIds: input.serviceIds, fromDateKey: input.date, days: 1 });
   if (!result.ok) return null;
-  const match = result.days.find((d) => d.date === input.date && d.slots.includes(input.startTime));
-  return match ? { professionalId: match.professionalId, professionalName: match.professionalName } : null;
+  // Varias esteticistas pueden estar libres a la misma hora: se elige al
+  // azar entre todas, no siempre la primera de la lista (para repartir la
+  // carga de trabajo en vez de sobrecargar a una sola).
+  const matches = result.days.filter((d) => d.date === input.date && d.slots.includes(input.startTime));
+  if (matches.length === 0) return null;
+  const chosen = matches[Math.floor(Math.random() * matches.length)];
+  return { professionalId: chosen.professionalId, professionalName: chosen.professionalName };
 }
 
 export { getSchedulableProfessionals };
