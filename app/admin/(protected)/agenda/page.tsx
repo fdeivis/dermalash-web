@@ -99,6 +99,11 @@ export default async function AgendaPage({
               Día siguiente →
             </Button>
           </Link>
+          <Link href="/admin/agenda/reporte">
+            <Button variant="outline" size="sm">
+              Reporte
+            </Button>
+          </Link>
           {canManage && (
             <>
               <Link href="/admin/agenda/horarios">
