@@ -3,6 +3,20 @@ import type { MessagingProvider } from "@/lib/messaging/provider";
 const GRAPH_API_VERSION = "v21.0";
 
 /**
+ * Los webhooks entrantes de Meta identifican a los celulares argentinos con
+ * el "9" agregado despues del codigo de pais (ej. 5491136507943), pero para
+ * enviar hay que sacarlo (5411...) - Meta lo vuelve a agregar solo. Sin este
+ * ajuste, la respuesta se envia al mismo numero que escribio pero con el
+ * formato que la propia Cloud API rechaza.
+ */
+function normalizeOutgoingNumber(to: string): string {
+  if (/^549\d{10}$/.test(to)) {
+    return "54" + to.slice(3);
+  }
+  return to;
+}
+
+/**
  * Envío real de WhatsApp vía la Cloud API de Meta (Fase 2 del MVP4). Misma
  * interfaz que el proveedor simulado — el resto del sistema (loop del
  * agente, historial, alertas) no cambia nada al pasar de un canal a otro.
@@ -27,7 +41,7 @@ export class WhatsAppCloudProvider implements MessagingProvider {
         },
         body: JSON.stringify({
           messaging_product: "whatsapp",
-          to,
+          to: normalizeOutgoingNumber(to),
           type: "text",
           text: { body: text },
         }),
