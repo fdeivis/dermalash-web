@@ -565,8 +565,31 @@ function buildTools(opts: {
  * Punto de entrada único del agente, sin conocimiento de autenticación: la
  * autorización la resuelve cada canal (permiso de admin en el chat
  * simulado, verificación de firma de Meta en el webhook real de la Fase 2).
+ *
+ * Dos mensajes casi simultáneos de la misma conversación (dos webhooks de
+ * Meta en paralelo) pueden interleavarse: cada invocación lee su propia
+ * foto del historial, y una puede terminar de escribir su respuesta justo
+ * en medio de la lectura de la otra, dejándole un historial que termina en
+ * un mensaje del asistente en vez del cliente — la API de Anthropic lo
+ * rechaza (error real visto en producción). Un lock advisory de Postgres
+ * por conversationId serializa los turnos de la MISMA conversación sin
+ * bloquear otras conversaciones en paralelo.
  */
 export async function runAssistantTurn(
+  conversationId: string,
+  userMessage: string,
+  provider: MessagingProvider
+): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${conversationId}))`;
+      await runAssistantTurnLocked(conversationId, userMessage, provider);
+    },
+    { timeout: 60_000, maxWait: 10_000 }
+  );
+}
+
+async function runAssistantTurnLocked(
   conversationId: string,
   userMessage: string,
   provider: MessagingProvider
