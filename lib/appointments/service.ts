@@ -278,4 +278,50 @@ export async function getAvailableSlots(input: {
   return { ok: true, days: results };
 }
 
+export type AvailableDayUnion = { date: string; weekday: string; slots: string[] };
+
+/**
+ * Igual que `getAvailableSlots`, pero sin exponer qué profesional está
+ * libre en cada franja: solo la unión de horarios donde AL MENOS una
+ * esteticista tiene lugar. Quién atiende es información interna del
+ * negocio — el cliente elige un horario, no una persona (sección 8.1 del
+ * diseño funcional: "el sistema ofrece el primer profesional disponible").
+ */
+export async function getAvailableSlotsUnion(input: {
+  serviceIds: string[];
+  fromDateKey?: string;
+  days?: number;
+}): Promise<{ ok: true; days: AvailableDayUnion[] } | { ok: false; error: "servicio-invalido" }> {
+  const perProfessional = await getAvailableSlots(input);
+  if (!perProfessional.ok) return perProfessional;
+
+  const byDate = new Map<string, { weekday: string; slots: Set<string> }>();
+  for (const day of perProfessional.days) {
+    const entry = byDate.get(day.date) ?? { weekday: day.weekday, slots: new Set<string>() };
+    day.slots.forEach((s) => entry.slots.add(s));
+    byDate.set(day.date, entry);
+  }
+
+  const days = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, v]) => ({ date, weekday: v.weekday, slots: [...v.slots].sort() }));
+  return { ok: true, days };
+}
+
+/**
+ * Para un horario puntual ya elegido por el cliente, encuentra qué
+ * profesional está realmente libre (para asignarla al crear/reprogramar el
+ * turno) sin que el cliente haya tenido que verla ni elegirla.
+ */
+export async function findAvailableProfessional(input: {
+  serviceIds: string[];
+  date: string;
+  startTime: string;
+}): Promise<{ professionalId: string; professionalName: string } | null> {
+  const result = await getAvailableSlots({ serviceIds: input.serviceIds, fromDateKey: input.date, days: 1 });
+  if (!result.ok) return null;
+  const match = result.days.find((d) => d.date === input.date && d.slots.includes(input.startTime));
+  return match ? { professionalId: match.professionalId, professionalName: match.professionalName } : null;
+}
+
 export { getSchedulableProfessionals };

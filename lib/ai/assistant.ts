@@ -5,13 +5,13 @@ import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 // zod v3 clásico para validar FormData, sin relación con esto.
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
-import { peruToday, peruParts, professionalLabel, addDaysUTC, fromPeruParts, endOfDay } from "@/lib/scheduling";
+import { peruToday, peruParts, addDaysUTC, fromPeruParts, endOfDay } from "@/lib/scheduling";
 import {
   createAppointmentCore,
   rescheduleAppointmentCore,
   cancelAppointmentCore,
-  getAvailableSlots,
-  getSchedulableProfessionals,
+  getAvailableSlotsUnion,
+  findAvailableProfessional,
 } from "@/lib/appointments/service";
 import { createAlert } from "@/lib/alerts";
 import { getSystemAssistantUserId } from "@/lib/ai/systemUser";
@@ -28,9 +28,16 @@ const MONTHS_ES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
+// `date` acá siempre es una fecha calendario NEUTRA (medianoche UTC que
+// representa un día de Perú, ver peruToday/addDaysUTC) — nunca un instante
+// real. Por eso se leen sus componentes con los getters UTC directos, no
+// con `peruParts` (que resta 5 horas asumiendo un instante real; aplicado
+// acá corría la fecha un día para atrás, generando un calendario de
+// referencia con la clave "YYYY-MM-DD" desincronizada del día de semana
+// mostrado en la misma fila — bug real encontrado al escribir un test).
 function dateKeyOf(date: Date) {
-  const { year, month, day } = peruParts(date);
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
 // El modelo no tiene reloj propio y calcular a mano "mañana" o "el jueves
@@ -57,23 +64,53 @@ function peruTodayContext(): string {
 }
 
 const SYSTEM_PROMPT = `Sos el asistente de WhatsApp de Dermalash, un centro estético en Lima, Perú.
-Hablás español de Perú, en mensajes cortos como los de WhatsApp (sin markdown pesado, sin tablas).
+Hablás español de Perú, con un tono cálido, cercano y entusiasta — como alguien de
+confianza que quiere que la clienta se anime a reservar, no como un call center. Sin
+ser invasivo, siempre buscá cerrar la conversación con una reserva concretada.
+
+Formato de los mensajes (son de WhatsApp, no un documento):
+- Mensajes cortos. Nada de párrafos largos que junten todo: separá ideas distintas
+  en líneas o bloques cortos, con saltos de línea entre cada una.
+  Ej.: precio en una línea, duración en otra, pregunta de cierre en otra.
+- Usá *asteriscos* para resaltar lo importante (precio, horario, nombre del
+  servicio) — así se ve en negrita en WhatsApp. No uses markdown de otro tipo
+  (nada de **doble asterisco**, headers con #, ni tablas).
+- Para listar opciones (varios horarios, varios servicios), un renglón por opción
+  con un guion o un emoji simple adelante — no los enumeres todos seguidos en una
+  misma oración.
+- Emojis con moderación, para dar calidez (😊, 💆, ✨), no en cada palabra.
 
 Tu alcance es EXCLUSIVAMENTE:
-- Informar sobre servicios y promociones vigentes.
+- Informar sobre servicios y promociones vigentes (incluida la descripción de cada
+  servicio: para eso está, compartila con gusto para entusiasmar a la clienta).
 - Reservar, reprogramar o cancelar turnos.
 
 Fuera de tu alcance (usá la tool "derivar_a_humano" si el cliente insiste):
-- Consejos médicos, diagnósticos o recomendaciones de tratamiento.
+- Preguntas clínicas puntuales (si le conviene el tratamiento dado algo de su
+  salud, contraindicaciones, qué tan seguro es en su caso particular, resultados
+  esperados en su situación). Para esto NO es que "no podés ayudar" — al
+  contrario: es la oportunidad perfecta para invitarla a reservar, porque en la
+  consulta nuestras especialistas le van a resolver eso personalmente. Nunca lo
+  frenes como un rechazo; encaminalo hacia la reserva.
 - Negociar precios distintos a los publicados.
 - Quejas, reclamos o pedidos de reembolso.
-- Cualquier otro tema no relacionado a agendar turnos en Dermalash.
+- Cualquier otro tema no relacionado a los servicios/turnos de Dermalash.
+
+Información interna que NUNCA le mostrás al cliente:
+- Qué esteticista está libre u ocupada en un horario, ni quién la va a atender.
+  Eso lo decide el sistema solo; el cliente elige un horario, no una persona.
+  "buscar_disponibilidad" y "crear_turno"/"reprogramar_turno" ya están armadas
+  para que nunca necesites mencionar ni pedir el nombre de ninguna esteticista.
 
 Reglas estrictas:
-- NUNCA inventes un precio, duración, horario libre o nombre de profesional que no
-  haya salido de una tool llamada en este mismo turno. Si no tenés el dato, llamá
-  a la tool correspondiente antes de responder.
-- Antes de mencionar cualquier precio, duración o promoción, llamá a "obtener_catalogo".
+- NUNCA inventes un precio, duración, descripción, promoción u horario libre que
+  no haya salido de una tool llamada en este mismo turno. Si no tenés el dato,
+  llamá a la tool correspondiente antes de responder.
+- Antes de mencionar cualquier precio, duración, descripción o promoción, llamá a
+  "obtener_catalogo". Si hay una promoción vigente para el servicio del que estás
+  hablando, mencionala. Si NO hay ninguna, no lo aclares ("no hay promociones
+  vigentes" suena raro) — simplemente no digas nada sobre promociones, salvo que
+  el cliente pregunte explícitamente si hay descuentos u ofertas.
 - Antes de ofrecer un horario, llamá a "buscar_disponibilidad" — nunca supongas que
   un horario está libre. Esta tool no recibe ninguna fecha como parámetro: siempre
   devuelve los próximos días con lugar libre, cada uno con su propia "fecha" y
@@ -87,8 +124,11 @@ Reglas estrictas:
 - No existe la posibilidad de forzar un turno fuera de horario o en un feriado: si
   "crear_turno"/"reprogramar_turno" devuelven ese error, ofrecé otra franja horaria
   con "buscar_disponibilidad" o derivá a un humano si el cliente insiste.
+- Si "crear_turno"/"reprogramar_turno" devuelven "horario-no-disponible", es porque
+  se ocupó justo en este momento: volvé a llamar "buscar_disponibilidad" y ofrecé
+  otra franja, sin decirle al cliente el motivo técnico.
 - Si una tool de escritura falla, no reintentes con los mismos datos: explicá el
-  motivo y ofrecé una alternativa.
+  motivo (en términos simples, nunca técnicos) y ofrecé una alternativa.
 - Para agendar, primero necesitás saber quién es el cliente: si no lo identificaste
   todavía, pedí nombre y apellido y llamá a "identificar_o_crear_cliente".
 - Las fechas que recibís de las tools están en formato "YYYY-MM-DD" y las horas en
@@ -149,6 +189,7 @@ function buildTools(opts: {
         servicios: services.map((s) => ({
           id: s.id,
           nombre: s.name,
+          descripcion: s.description,
           precio: Number(s.price),
           precioDesde: s.priceFrom,
           duracionMinutos: s.durationMinutes,
@@ -167,23 +208,17 @@ function buildTools(opts: {
   const buscarDisponibilidad = betaZodTool({
     name: "buscar_disponibilidad",
     description:
-      'Devuelve, para un conjunto de servicios, los próximos días con franjas horarias realmente libres (en base a la agenda real: horarios de trabajo, ausencias y turnos ya tomados). No recibe ninguna fecha como parámetro — siempre trae los próximos 10 días con lugar, cada uno con su "fecha" (YYYY-MM-DD) y "diaSemana". Buscá vos, en esa lista, el día que corresponda a lo que pidió el cliente (comparándolo con el calendario de referencia del contexto). Llamar siempre antes de ofrecer un horario.',
+      'Devuelve, para un conjunto de servicios, los próximos días con franjas horarias realmente libres (en base a la agenda real: horarios de trabajo, ausencias y turnos ya tomados de TODO el equipo — un horario aparece como libre si al menos una esteticista puede atenderlo, sin decir cuál). No recibe ninguna fecha como parámetro — siempre trae los próximos 10 días con lugar, cada uno con su "fecha" (YYYY-MM-DD) y "diaSemana". Buscá vos, en esa lista, el día que corresponda a lo que pidió el cliente (comparándolo con el calendario de referencia del contexto). Llamar siempre antes de ofrecer un horario.',
     inputSchema: z.object({
       serviceIds: z.array(z.string()).describe("ids de servicio devueltos por obtener_catalogo"),
-      professionalId: z.string().optional().describe("opcional: limitar a un profesional específico"),
     }),
     run: async (input) => {
-      const result = await getAvailableSlots({
-        serviceIds: input.serviceIds,
-        professionalId: input.professionalId,
-      });
+      const result = await getAvailableSlotsUnion({ serviceIds: input.serviceIds });
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({
         disponibilidad: result.days.map((d) => ({
           fecha: d.date,
           diaSemana: d.weekday,
-          profesionalId: d.professionalId,
-          profesional: d.professionalName,
           horarios: d.slots,
         })),
       });
@@ -193,7 +228,7 @@ function buildTools(opts: {
   const consultarTurnosCliente = betaZodTool({
     name: "consultar_turnos_cliente",
     description:
-      "Lista los turnos futuros (reservados o confirmados) del cliente ya identificado en esta conversación.",
+      "Lista los turnos futuros (reservados o confirmados) del cliente ya identificado en esta conversación, con sus servicioIds — llamar antes de reprogramar_turno o cancelar_turno para tener el appointmentId y los servicioIds correctos.",
     inputSchema: z.object({}),
     run: async () => {
       if (!clientState.id) {
@@ -201,7 +236,7 @@ function buildTools(opts: {
       }
       const appointments = await prisma.appointment.findMany({
         where: { clientId: clientState.id, status: { in: ["RESERVADO", "CONFIRMADO"] }, startAt: { gte: new Date() } },
-        include: { professional: true, services: { include: { service: true } } },
+        include: { services: { include: { service: true } } },
         orderBy: { startAt: "asc" },
       });
       return JSON.stringify({
@@ -209,8 +244,8 @@ function buildTools(opts: {
           id: a.id,
           fecha: a.startAt.toISOString().slice(0, 10),
           hora: `${peruParts(a.startAt).hour.toString().padStart(2, "0")}:${peruParts(a.startAt).minute.toString().padStart(2, "0")}`,
-          profesional: professionalLabel(a.professional),
           servicios: a.services.map((s) => s.service.name),
+          servicioIds: a.services.map((s) => s.serviceId),
         })),
       });
     },
@@ -242,9 +277,8 @@ function buildTools(opts: {
   const crearTurno = betaZodTool({
     name: "crear_turno",
     description:
-      "Crea un turno para el cliente ya identificado. No existe la opción de forzar fuera de horario: si falla por horario/feriado, ofrecer otra franja con buscar_disponibilidad. Rechaza fechas pasadas (error 'fecha-en-el-pasado').",
+      "Crea un turno para el cliente ya identificado, en un horario que ya salió de buscar_disponibilidad. Asigna la esteticista internamente — no recibe ni expone profesional. No existe la opción de forzar fuera de horario: si falla por horario/feriado, ofrecer otra franja con buscar_disponibilidad. Rechaza fechas pasadas (error 'fecha-en-el-pasado').",
     inputSchema: z.object({
-      professionalId: z.string(),
       serviceIds: z.array(z.string()).min(1),
       fecha: z.string().describe('"YYYY-MM-DD"'),
       horaInicio: z.string().describe('"HH:MM", 24 horas'),
@@ -261,10 +295,20 @@ function buildTools(opts: {
       if (requestedStart <= new Date()) {
         return JSON.stringify({ error: "fecha-en-el-pasado" });
       }
+      // Qué esteticista atiende es información interna: el modelo nunca la
+      // pide ni la ve, se resuelve acá mismo justo antes de crear el turno
+      // (por si cambió algo entre que se mostró la disponibilidad y ahora).
+      const assigned = await findAvailableProfessional({
+        serviceIds: input.serviceIds,
+        date: input.fecha,
+        startTime: input.horaInicio,
+      });
+      if (!assigned) return JSON.stringify({ error: "horario-no-disponible" });
+
       const systemUserId = await getSystemAssistantUserId();
       const result = await createAppointmentCore({
         clientId: clientState.id,
-        professionalId: input.professionalId,
+        professionalId: assigned.professionalId,
         serviceIds: input.serviceIds,
         date: input.fecha,
         startTime: input.horaInicio,
@@ -286,16 +330,24 @@ function buildTools(opts: {
 
   const reprogramarTurno = betaZodTool({
     name: "reprogramar_turno",
-    description: "Reprograma un turno existente del cliente a otra fecha/hora u otro profesional.",
+    description:
+      "Reprograma un turno existente del cliente a otra fecha/hora, en un horario que ya salió de buscar_disponibilidad. Asigna la esteticista internamente, igual que crear_turno.",
     inputSchema: z.object({
       appointmentId: z.string(),
-      professionalId: z.string(),
+      serviceIds: z.array(z.string()).min(1).describe("los mismos servicios del turno original"),
       fecha: z.string().describe('"YYYY-MM-DD"'),
       horaInicio: z.string().describe('"HH:MM", 24 horas'),
     }),
     run: async (input) => {
+      const assigned = await findAvailableProfessional({
+        serviceIds: input.serviceIds,
+        date: input.fecha,
+        startTime: input.horaInicio,
+      });
+      if (!assigned) return JSON.stringify({ error: "horario-no-disponible" });
+
       const result = await rescheduleAppointmentCore(input.appointmentId, {
-        professionalId: input.professionalId,
+        professionalId: assigned.professionalId,
         date: input.fecha,
         startTime: input.horaInicio,
       });
