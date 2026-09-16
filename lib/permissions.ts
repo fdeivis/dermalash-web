@@ -82,6 +82,31 @@ export const PERMISSION_MODULES = [
       { key: "asistente_ia.chat", label: "Usar el chat de prueba y ver conversaciones" },
     ],
   },
+  {
+    key: "proveedores",
+    label: "Proveedores",
+    permissions: [
+      { key: "proveedores.ver", label: "Ver el listado de proveedores" },
+      { key: "proveedores.gestionar", label: "Crear, editar y eliminar proveedores" },
+    ],
+  },
+  {
+    key: "gastos",
+    label: "Gastos y egresos",
+    permissions: [
+      { key: "gastos.ver", label: "Ver el listado de gastos y sus reportes" },
+      { key: "gastos.gestionar", label: "Registrar gastos" },
+      { key: "gastos.eliminar", label: "Eliminar gastos registrados" },
+    ],
+  },
+  {
+    key: "caja",
+    label: "Caja",
+    permissions: [
+      { key: "caja.ver", label: "Ver el estado de caja y su historial" },
+      { key: "caja.gestionar", label: "Abrir y cerrar sesiones de caja" },
+    ],
+  },
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_MODULES)[number]["permissions"][number]["key"];

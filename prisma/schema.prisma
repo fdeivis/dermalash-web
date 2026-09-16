@@ -122,6 +122,23 @@ enum AttachmentKind {
   HEALTH_RECORD
 }
 
+enum SupplierRating {
+  BUENA
+  REGULAR
+  MALA
+}
+
+enum ExpenseCategory {
+  ALQUILER
+  INTERNET
+  LUZ
+  AGUA
+  INVENTARIO
+  SUELDOS
+  ADELANTO_GANANCIAS
+  OTROS
+}
+
 // Usuario del panel de administración.
 // MVP2: se agrega `role` (Socio / Encargado / Esteticista). El Socio no
 // tiene `employee` asociado (no es "personal"); Encargado/Esteticista sí.
@@ -246,6 +263,7 @@ model Employee {
   cvUrl         String?
   active        Boolean                @default(true)
   salaryPeriods EmployeeSalaryPeriod[]
+  expenses      Expense[]
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
 }
@@ -451,4 +469,70 @@ model Post {
   updatedAt   DateTime      @updatedAt
 
   @@index([status, publishedAt])
+}
+
+// MVP5: proveedores. Sin tabla de "compras" propia a propósito — una compra
+// o servicio contratado a un proveedor es un Expense con supplierId, para
+// no poder cargar el mismo gasto dos veces (una vez como "compra" y otra
+// como "egreso").
+model Supplier {
+  id          String          @id @default(cuid())
+  name        String
+  taxId       String?
+  contactInfo String?
+  rating      SupplierRating?
+  expenses    Expense[]
+  createdAt   DateTime        @default(now())
+}
+
+// MVP5: conciliación de una cuenta/medio de pago (no solo la caja física de
+// efectivo) — se abre con un saldo inicial y se cierra comparando el saldo
+// esperado (calculado de Income/Expense de ese medio de pago) contra el
+// real (contado a mano, o visto en la app del banco/Yape). Puede haber una
+// sesión abierta por cada PaymentMethod en simultáneo, pero no dos del
+// mismo medio a la vez (validado en código, no en el schema).
+model CashSession {
+  id             String        @id @default(cuid())
+  paymentMethod  PaymentMethod
+  openedAt       DateTime      @default(now())
+  openedByUserId String
+  openingAmount  Decimal       @db.Decimal(10, 2)
+  closedAt       DateTime?
+  closedByUserId String?
+  // Se congelan al cerrar (no se recalculan después).
+  expectedAmount Decimal?      @db.Decimal(10, 2)
+  actualAmount   Decimal?      @db.Decimal(10, 2)
+  difference     Decimal?      @db.Decimal(10, 2)
+  notes          String?
+  expenses       Expense[]
+  createdAt      DateTime      @default(now())
+
+  @@index([paymentMethod, closedAt])
+}
+
+// MVP5: gastos y egresos. Cubre tanto gastos operativos sueltos como
+// compras a un proveedor (supplierId opcional) y sueldos (employeeId,
+// obligatorio en código cuando category = SUELDOS, no acá).
+model Expense {
+  id              String          @id @default(cuid())
+  concept         String
+  category        ExpenseCategory
+  date            DateTime
+  amount          Decimal         @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod
+  // Bucket privado (igual que los adjuntos de cliente): un comprobante de
+  // gasto es información financiera interna, no material público.
+  receiptPath     String?
+  notes           String?
+  supplier        Supplier?       @relation(fields: [supplierId], references: [id])
+  supplierId      String?
+  employee        Employee?       @relation(fields: [employeeId], references: [id])
+  employeeId      String?
+  cashSession     CashSession?    @relation(fields: [cashSessionId], references: [id])
+  cashSessionId   String?
+  createdByUserId String
+  createdAt       DateTime        @default(now())
+
+  @@index([date])
+  @@index([category, date])
 }

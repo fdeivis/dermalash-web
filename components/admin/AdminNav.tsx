@@ -26,12 +26,18 @@ export function AdminNav({
   canManageAgenda = false,
   canManagePermissions = false,
   canUseAssistant = false,
+  canViewProveedores = false,
+  canViewGastos = false,
+  canViewCaja = false,
 }: {
   alertCount?: number;
   canViewEmployees?: boolean;
   canManageAgenda?: boolean;
   canManagePermissions?: boolean;
   canUseAssistant?: boolean;
+  canViewProveedores?: boolean;
+  canViewGastos?: boolean;
+  canViewCaja?: boolean;
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -56,6 +62,9 @@ export function AdminNav({
         ]
       : []),
     ...(canUseAssistant ? [{ href: "/admin/asistente-ia", label: "Asistente IA" }] : []),
+    ...(canViewProveedores ? [{ href: "/admin/proveedores", label: "Proveedores" }] : []),
+    ...(canViewGastos ? [{ href: "/admin/gastos", label: "Gastos" }] : []),
+    ...(canViewCaja ? [{ href: "/admin/caja", label: "Caja" }] : []),
   ];
 
   useEffect(() => {

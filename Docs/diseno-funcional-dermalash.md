@@ -441,27 +441,31 @@ de exposición pública necesario para recibir mensajes entrantes
 
 # 12. Caja — MVP5
 
-**Decisión de modelado**: la Caja concilia únicamente **efectivo**, no
-la totalidad de los medios de pago — Yape, Plin, tarjeta y
-transferencia no están físicamente en la caja para poder contarlos, así
-que quedan fuera del arqueo (aunque el ingreso o egreso igual se
-registra normalmente, solo que no participa del cálculo de la caja).
+**Decisión de modelado**: la Caja es una **conciliación por medio de
+pago**, no solo de efectivo — además del efectivo físico, se puede
+conciliar Yape, Plin, tarjeta y transferencia contra el saldo real de
+cada cuenta (lo que muestra la app del banco/Yape), con el mismo
+mecanismo de apertura/cierre. Puede haber una sesión abierta por cada
+medio de pago en simultáneo, pero no dos del mismo medio a la vez.
 
-- Apertura de caja indicando con cuánto efectivo arranca.
+- Apertura de una sesión de caja para un medio de pago dado, indicando
+  con cuánto arranca (efectivo contado, o saldo visto en la cuenta/app
+  al momento de abrir).
 
-- Los ingresos por sesiones cobradas en efectivo (el modelo `Income`
-  que ya genera cada `ClientSession`, sección 8) y los egresos en
-  efectivo registrados mientras la caja está abierta se consultan por
-  rango de fecha al momento del cierre — no hace falta que cada ingreso
-  quede enlazado manualmente a una caja.
+- Los ingresos (el modelo `Income` que ya genera cada `ClientSession`,
+  sección 8) y los egresos con ESE mismo medio de pago, registrados
+  mientras esa sesión está abierta, se consultan por rango de fecha al
+  momento del cierre — no hace falta que cada ingreso quede enlazado
+  manualmente a una sesión.
 
-- Cierre de caja: el saldo esperado se calcula solo (efectivo inicial +
-  ingresos en efectivo − egresos en efectivo del período), se ingresa
-  el saldo real contado a mano, y se registra la diferencia si la hay.
+- Cierre de sesión: el saldo esperado se calcula solo (saldo inicial +
+  ingresos − egresos del período, del mismo medio de pago), se ingresa
+  el saldo real (contado a mano si es efectivo, o visto en la app si es
+  electrónico), y se registra la diferencia si la hay.
 
-- Historial de aperturas y cierres.
+- Historial de aperturas y cierres, de todos los medios de pago.
 
-- No permitir más de una caja abierta para el mismo alcance operativo,
+- No permitir más de una sesión abierta para el mismo medio de pago,
   salvo que posteriormente se defina operación con múltiples
   cajas/sedes.
 
@@ -481,7 +485,9 @@ fechas.
 - Gastos por categoría y proveedor (MVP5).
 
 - Balance de ingresos versus egresos, visible únicamente para Socio
-  (MVP5).
+  (MVP5) — desglosado por medio de pago (Efectivo, Yape, Plin, Tarjeta,
+  Transferencia) además del total general, para saber cuánto debería
+  haber en cada cuenta, no solo en la caja física.
 
 - Caja: aperturas, cierres y diferencias (MVP5).
 
