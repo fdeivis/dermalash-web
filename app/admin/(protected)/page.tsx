@@ -5,8 +5,7 @@ import { hasPermission } from "@/lib/permissions";
 import { professionalLabel, formatDateTime12, peruToday, peruDayRange } from "@/lib/scheduling";
 import { computeCashBalance } from "@/lib/cash";
 import { Button } from "@/components/ui/button";
-import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
-import { openCashSession, closeCashSession } from "./caja/actions";
+import { openCashSession } from "./caja/actions";
 import { formatPrice } from "@/lib/utils";
 
 // Los contadores deben reflejar siempre el estado actual: las acciones de
@@ -68,7 +67,7 @@ export default async function AdminDashboardPage() {
     ]);
 
   const todayRange = peruDayRange(peruToday());
-  const [todayIncome, todayExpense, efectivoSession] = await Promise.all([
+  const [todayIncome, todayExpense, openSession] = await Promise.all([
     canViewGastos
       ? prisma.income.aggregate({
           where: { occurredAt: { gte: todayRange.start, lte: todayRange.end } },
@@ -81,10 +80,19 @@ export default async function AdminDashboardPage() {
           _sum: { amount: true },
         })
       : null,
-    canViewCaja ? prisma.cashSession.findFirst({ where: { paymentMethod: "EFECTIVO", closedAt: null } }) : null,
+    canViewCaja
+      ? prisma.cashSession.findFirst({ where: { closedAt: null }, include: { accounts: true } })
+      : null,
   ]);
-  const efectivoExpected = efectivoSession
-    ? await computeCashBalance("EFECTIVO", Number(efectivoSession.openingAmount), efectivoSession.openedAt, new Date())
+  const efectivoAccount = openSession?.accounts.find((a) => a.paymentMethod === "EFECTIVO");
+  const efectivoExpected = efectivoAccount
+    ? await computeCashBalance(
+        "EFECTIVO",
+        Number(efectivoAccount.openingAmount),
+        openSession!.id,
+        openSession!.openedAt,
+        new Date()
+      )
     : null;
 
   const cards = [
@@ -175,47 +183,34 @@ export default async function AdminDashboardPage() {
           {canViewCaja && (
             <div className="rounded-brand border border-brand-border bg-brand-surface p-6">
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg">Caja (Efectivo)</h2>
+                <h2 className="font-display text-lg">Caja</h2>
                 <Link href="/admin/caja" className="text-sm text-brand-muted underline hover:text-brand-ink">
                   Ver caja →
                 </Link>
               </div>
-              {efectivoSession ? (
+              {openSession ? (
                 <div className="mt-3 space-y-2 text-sm">
                   <p className="text-brand-muted">
-                    Abierta — saldo esperado: {formatPrice(efectivoExpected ?? 0)}
+                    Abierta desde {formatDateTime12(openSession.openedAt)}
+                    {efectivoExpected !== null && (
+                      <> — Efectivo esperado: {formatPrice(efectivoExpected)}</>
+                    )}
                   </p>
                   {canManageCaja && (
-                    <form action={closeCashSession.bind(null, efectivoSession.id)} className="flex items-end gap-2">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium">Saldo real</label>
-                        <input
-                          type="number"
-                          name="actualAmount"
-                          step="0.01"
-                          min={0}
-                          required
-                          className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
-                        />
-                      </div>
-                      <ConfirmSubmitButton
-                        type="submit"
-                        size="sm"
-                        confirmMessage="¿Cerrar la caja de Efectivo?"
-                      >
-                        Cerrar
-                      </ConfirmSubmitButton>
-                    </form>
+                    <Link href="/admin/caja">
+                      <Button size="sm" variant="outline">
+                        Ir a cerrar caja
+                      </Button>
+                    </Link>
                   )}
                 </div>
               ) : canManageCaja ? (
                 <form action={openCashSession} className="mt-3 flex items-end gap-2">
-                  <input type="hidden" name="paymentMethod" value="EFECTIVO" />
                   <div className="flex-1">
-                    <label className="block text-xs font-medium">Saldo inicial</label>
+                    <label className="block text-xs font-medium">Efectivo inicial</label>
                     <input
                       type="number"
-                      name="openingAmount"
+                      name="EFECTIVO"
                       step="0.01"
                       min={0}
                       required

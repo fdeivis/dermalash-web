@@ -57,13 +57,24 @@ function isSameLocalDay(iso: string, dateTimeLocalValue: string) {
   return a.getFullYear() === y && a.getMonth() + 1 === m && a.getDate() === d;
 }
 
+// Acá sí se fija timeZone explícito (a diferencia de nowInputValue/
+// toDateTimeLocalValue, que a propósito usan la hora local del navegador
+// porque así funciona un <input type="datetime-local">): esto es solo
+// texto para mostrar, no debe depender de en qué huso esté configurado el
+// sistema operativo de quien lo mira.
 function formatAppointmentOption(a: AppointmentOption) {
   const d = new Date(a.startAt);
-  const isToday = d.toDateString() === new Date().toDateString();
+  const isToday =
+    d.toLocaleDateString("es-PE", { timeZone: "America/Lima" }) ===
+    new Date().toLocaleDateString("es-PE", { timeZone: "America/Lima" });
   const datePart = isToday
     ? "Hoy"
-    : d.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" });
-  const timePart = d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+    : d.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", timeZone: "America/Lima" });
+  const timePart = d.toLocaleTimeString("es-PE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Lima",
+  });
   return `${datePart} ${timePart} — ${a.serviceNames.join(", ") || "sin servicios"}`;
 }
 

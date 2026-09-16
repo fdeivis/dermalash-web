@@ -132,7 +132,7 @@ export default async function VerClientePage({
           {attachmentsWithUrl.map((attachment) => (
             <li key={attachment.id} className="flex items-center justify-between">
               <span>
-                {KIND_LABEL[attachment.kind]} · {attachment.createdAt.toLocaleDateString("es-PE")}
+                {KIND_LABEL[attachment.kind]} · {formatDateTime12(attachment.createdAt)}
               </span>
               <span className="flex items-center gap-3">
                 {attachment.url ? (

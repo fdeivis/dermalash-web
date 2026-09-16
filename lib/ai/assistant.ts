@@ -334,13 +334,21 @@ function buildTools(opts: {
         orderBy: { startAt: "asc" },
       });
       return JSON.stringify({
-        turnos: appointments.map((a) => ({
-          id: a.id,
-          fecha: a.startAt.toISOString().slice(0, 10),
-          hora: `${peruParts(a.startAt).hour.toString().padStart(2, "0")}:${peruParts(a.startAt).minute.toString().padStart(2, "0")}`,
-          servicios: a.services.map((s) => s.service.name),
-          servicioIds: a.services.map((s) => s.serviceId),
-        })),
+        turnos: appointments.map((a) => {
+          const parts = peruParts(a.startAt);
+          const pad = (n: number) => n.toString().padStart(2, "0");
+          return {
+            id: a.id,
+            // NUNCA .toISOString().slice(0,10) acá: startAt es un instante
+            // real, y para un turno despues de las 7pm en Peru, la fecha en
+            // UTC ya cae en el dia siguiente (Peru = UTC-5) — le hubiera
+            // dicho al cliente un dia equivocado.
+            fecha: `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`,
+            hora: `${pad(parts.hour)}:${pad(parts.minute)}`,
+            servicios: a.services.map((s) => s.service.name),
+            servicioIds: a.services.map((s) => s.serviceId),
+          };
+        }),
       });
     },
   });

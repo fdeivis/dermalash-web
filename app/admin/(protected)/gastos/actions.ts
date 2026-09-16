@@ -63,10 +63,13 @@ export async function createExpense(formData: FormData) {
 
   const date = parseDateTimeLocal(data.date);
 
-  // Un gasto pagado en el mismo medio de una caja abierta queda enlazado
-  // automáticamente a esa sesión — sin pedírselo al usuario (sección 12).
+  // Un gasto pagado en un medio que la caja abierta está arqueando queda
+  // enlazado automáticamente a esa sesión — sin pedírselo al usuario
+  // (sección 12). Si la caja está abierta pero esa cuenta en particular no
+  // se abrió (ej. caja solo con Efectivo y el gasto es por Yape), no se
+  // enlaza: esa cuenta no está bajo conciliación esta sesión.
   const openCashSession = await prisma.cashSession.findFirst({
-    where: { paymentMethod: data.paymentMethod, closedAt: null },
+    where: { closedAt: null, accounts: { some: { paymentMethod: data.paymentMethod } } },
   });
 
   const expense = await prisma.expense.create({

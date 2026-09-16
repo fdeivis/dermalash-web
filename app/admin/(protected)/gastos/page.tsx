@@ -35,6 +35,7 @@ export default async function GastosPage({
   const session = await requirePagePermission("gastos.ver");
   const canManage = await hasPermission(session.user.role, "gastos.gestionar");
   const canDelete = await hasPermission(session.user.role, "gastos.eliminar");
+  const canViewProveedores = await hasPermission(session.user.role, "proveedores.ver");
   const { category, supplierId, desde, hasta } = await searchParams;
 
   const where: Record<string, unknown> = {};
@@ -72,9 +73,9 @@ export default async function GastosPage({
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl">Gastos y egresos</h1>
         <div className="flex gap-2">
-          {["SOCIO", "ADMIN"].includes(session.user.role) && (
-            <Link href="/admin/gastos/balance">
-              <Button variant="outline">Balance</Button>
+          {canViewProveedores && (
+            <Link href="/admin/proveedores">
+              <Button variant="outline">Proveedores</Button>
             </Link>
           )}
           {canManage && (

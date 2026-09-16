@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/auth";
+import { formatDateTime12 } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createSimulatedConversation } from "./actions";
@@ -85,7 +86,7 @@ export default async function AsistenteIaPage() {
               >
                 <td className="px-4 py-3">
                   <Link href={`/admin/asistente-ia/${c.id}`} className="underline">
-                    {c.lastMessageAt.toLocaleString("es-PE")}
+                    {formatDateTime12(c.lastMessageAt)}
                   </Link>
                 </td>
                 <td className="px-4 py-3">{CHANNEL_LABEL[c.channel]}</td>

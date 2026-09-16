@@ -26,18 +26,18 @@ export function AdminNav({
   canManageAgenda = false,
   canManagePermissions = false,
   canUseAssistant = false,
-  canViewProveedores = false,
   canViewGastos = false,
   canViewCaja = false,
+  canViewBalance = false,
 }: {
   alertCount?: number;
   canViewEmployees?: boolean;
   canManageAgenda?: boolean;
   canManagePermissions?: boolean;
   canUseAssistant?: boolean;
-  canViewProveedores?: boolean;
   canViewGastos?: boolean;
   canViewCaja?: boolean;
+  canViewBalance?: boolean;
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -49,22 +49,27 @@ export function AdminNav({
   // de escritorio y en el menú desplegable de mobile. La visibilidad viene
   // calculada en el layout (server) a partir de los permisos reales del rol,
   // no de un array de roles hardcodeado acá.
+  //
+  // Proveedores no tiene link propio acá a propósito: se administra desde
+  // adentro de Gastos (son parte del mismo flujo de egresos). Alertas/Logs/
+  // Permisos van al final del menú porque son configuración, no operación
+  // diaria.
   const links = [
     ...LINKS,
     ...(canViewEmployees ? [{ href: "/admin/empleados", label: "Empleados" }] : []),
+    ...(canUseAssistant ? [{ href: "/admin/asistente-ia", label: "WhatsApp" }] : []),
+    ...(canViewGastos ? [{ href: "/admin/gastos", label: "Gastos" }] : []),
+    ...(canViewCaja ? [{ href: "/admin/caja", label: "Caja" }] : []),
+    ...(canViewBalance ? [{ href: "/admin/balance", label: "Balance" }] : []),
     ...(canManageAgenda
       ? [{ href: "/admin/alertas", label: `Alertas${alertCount > 0 ? ` (${alertCount})` : ""}` }]
       : []),
     ...(canManagePermissions
       ? [
-          { href: "/admin/permisos", label: "Permisos" },
           { href: "/admin/logs", label: "Logs" },
+          { href: "/admin/permisos", label: "Permisos" },
         ]
       : []),
-    ...(canUseAssistant ? [{ href: "/admin/asistente-ia", label: "Asistente IA" }] : []),
-    ...(canViewProveedores ? [{ href: "/admin/proveedores", label: "Proveedores" }] : []),
-    ...(canViewGastos ? [{ href: "/admin/gastos", label: "Gastos" }] : []),
-    ...(canViewCaja ? [{ href: "/admin/caja", label: "Caja" }] : []),
   ];
 
   useEffect(() => {

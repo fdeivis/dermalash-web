@@ -23,7 +23,10 @@ export default async function ProveedoresPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <Link href="/admin/gastos" className="text-sm text-brand-muted underline">
+        ← Volver a Gastos
+      </Link>
+      <div className="mt-2 flex items-center justify-between">
         <h1 className="font-display text-2xl">Proveedores</h1>
         {canManage && (
           <Link href="/admin/proveedores/nuevo">

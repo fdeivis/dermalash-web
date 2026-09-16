@@ -23,7 +23,7 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 const ERROR_LABEL: Record<string, string> = {
-  "ya-abierta": "Ese medio de pago ya tiene una sesión abierta.",
+  "ya-abierta": "Ya hay una caja abierta.",
 };
 
 export default async function CajaPage({
@@ -35,43 +35,38 @@ export default async function CajaPage({
   const canManage = await hasPermission(session.user.role, "caja.gestionar");
   const { error } = await searchParams;
 
-  const [openSessions, closedSessions] = await Promise.all([
-    prisma.cashSession.findMany({ where: { closedAt: null } }),
+  const [openSession, closedSessions] = await Promise.all([
+    prisma.cashSession.findFirst({ where: { closedAt: null }, include: { accounts: true } }),
     prisma.cashSession.findMany({
       where: { closedAt: { not: null } },
+      include: { accounts: true },
       orderBy: { closedAt: "desc" },
       take: 50,
     }),
   ]);
 
   const now = new Date();
-  // Efectivo (la caja física) siempre está visible, se use o no — el resto
-  // de los medios son opcionales: solo aparecen si alguien decidió abrir
-  // una conciliación para ellos.
-  const shownMethods: PaymentMethod[] = [
-    "EFECTIVO",
-    ...openSessions
-      .map((s) => s.paymentMethod)
-      .filter((m): m is PaymentMethod => m !== "EFECTIVO"),
-  ];
-  const addableMethods = RECONCILABLE_METHODS.filter((m) => !shownMethods.includes(m));
-
-  const cards = await Promise.all(
-    shownMethods.map(async (method) => {
-      const open = openSessions.find((s) => s.paymentMethod === method);
-      const expected = open
-        ? await computeCashBalance(method, Number(open.openingAmount), open.openedAt, now)
-        : null;
-      return { method, open, expected };
-    })
-  );
+  const openAccountsWithExpected = openSession
+    ? await Promise.all(
+        openSession.accounts.map(async (account) => ({
+          ...account,
+          expected: await computeCashBalance(
+            account.paymentMethod,
+            Number(account.openingAmount),
+            openSession.id,
+            openSession.openedAt,
+            now
+          ),
+        }))
+      )
+    : [];
 
   return (
     <div>
       <h1 className="font-display text-2xl">Caja</h1>
       <p className="mt-2 text-sm text-brand-muted">
-        Efectivo es la caja principal. Si además querés conciliar Yape, Plin, tarjeta o
-        transferencia contra el saldo real de esa cuenta, agregalos abajo.
+        Una sola caja, con una sola fecha de apertura. Efectivo es obligatorio; sumá Yape, Plin,
+        tarjeta o transferencia si también querés conciliarlas esta vez.
       </p>
 
       {error && (
@@ -80,100 +75,82 @@ export default async function CajaPage({
         </p>
       )}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map(({ method, open, expected }) => (
-          <div key={method} className="rounded-brand border border-brand-border bg-brand-surface p-4">
-            <p className="font-medium">{METHOD_LABEL[method]}</p>
-            {open ? (
-              <div className="mt-2 space-y-1 text-sm">
-                <p className="text-brand-muted">Abierta el {formatDateTime12(open.openedAt)}</p>
-                <p>Saldo inicial: {formatPrice(open.openingAmount.toString())}</p>
-                <p className="font-medium">Saldo esperado ahora: {formatPrice(expected ?? 0)}</p>
-                {canManage && (
-                  <form
-                    action={closeCashSession.bind(null, open.id)}
-                    className="mt-3 space-y-2"
-                  >
-                    <label className="block text-xs font-medium">Saldo real</label>
-                    <input
-                      type="number"
-                      name="actualAmount"
-                      step="0.01"
-                      min={0}
-                      required
-                      className="w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
-                    />
-                    <ConfirmSubmitButton
-                      type="submit"
-                      size="sm"
-                      confirmMessage={`¿Cerrar la sesión de ${METHOD_LABEL[method]}?`}
-                    >
-                      Cerrar sesión
-                    </ConfirmSubmitButton>
-                  </form>
-                )}
-              </div>
-            ) : canManage ? (
-              <form action={openCashSession} className="mt-3 space-y-2">
-                <input type="hidden" name="paymentMethod" value={method} />
-                <label className="block text-xs font-medium">Saldo inicial</label>
-                <input
-                  type="number"
-                  name="openingAmount"
-                  step="0.01"
-                  min={0}
-                  required
-                  className="w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
-                />
-                <Button type="submit" size="sm">
-                  Abrir caja
-                </Button>
-              </form>
-            ) : (
-              <p className="mt-2 text-sm text-brand-muted">Sin sesión abierta.</p>
-            )}
-          </div>
-        ))}
-      </div>
+      {openSession ? (
+        <div className="mt-6 rounded-brand border border-brand-border bg-brand-surface p-5">
+          <p className="text-sm text-brand-muted">Abierta el {formatDateTime12(openSession.openedAt)}</p>
 
-      {canManage && addableMethods.length > 0 && (
-        <div className="mt-4">
-          <details className="rounded-brand border border-dashed border-brand-border p-4">
-            <summary className="cursor-pointer text-sm font-medium">
-              + Conciliar otro medio de pago
-            </summary>
-            <form action={openCashSession} className="mt-3 flex flex-wrap items-end gap-3 text-sm">
-              <div>
-                <label className="block text-xs font-medium">Medio de pago</label>
-                <select
-                  name="paymentMethod"
-                  required
-                  className="mt-1 rounded-brand border border-brand-border px-3 py-2"
-                >
-                  {addableMethods.map((m) => (
-                    <option key={m} value={m}>
-                      {METHOD_LABEL[m]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium">Saldo inicial</label>
-                <input
-                  type="number"
-                  name="openingAmount"
-                  step="0.01"
-                  min={0}
-                  required
-                  className="mt-1 rounded-brand border border-brand-border px-3 py-2"
-                />
-              </div>
-              <Button type="submit" size="sm">
-                Agregar
-              </Button>
-            </form>
-          </details>
+          <form action={closeCashSession.bind(null, openSession.id)} className="mt-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {openAccountsWithExpected.map((account) => (
+                <div key={account.id} className="rounded-brand border border-brand-border p-3">
+                  <p className="font-medium">{METHOD_LABEL[account.paymentMethod]}</p>
+                  <p className="text-sm text-brand-muted">
+                    Saldo inicial: {formatPrice(account.openingAmount.toString())}
+                  </p>
+                  <p className="text-sm font-medium">Saldo esperado ahora: {formatPrice(account.expected)}</p>
+                  {canManage && (
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium">Saldo real</label>
+                      <input
+                        type="number"
+                        name={`actual_${account.paymentMethod}`}
+                        step="0.01"
+                        min={0}
+                        required
+                        className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {canManage && (
+              <ConfirmSubmitButton
+                type="submit"
+                confirmMessage="¿Cerrar la caja? Se van a registrar los saldos reales de todas las cuentas."
+              >
+                Cerrar caja
+              </ConfirmSubmitButton>
+            )}
+          </form>
         </div>
+      ) : canManage ? (
+        <form action={openCashSession} className="mt-6 max-w-xl space-y-4 rounded-brand border border-brand-border bg-brand-surface p-5">
+          <div>
+            <label className="block text-sm font-medium">Efectivo (obligatorio)</label>
+            <input
+              type="number"
+              name="EFECTIVO"
+              step="0.01"
+              min={0}
+              required
+              className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+            />
+          </div>
+          <details className="rounded-brand border border-dashed border-brand-border p-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              + Agregar otras cuentas (opcional)
+            </summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {RECONCILABLE_METHODS.filter((m) => m !== "EFECTIVO").map((m) => (
+                <div key={m}>
+                  <label className="block text-xs font-medium">{METHOD_LABEL[m]}</label>
+                  <input
+                    type="number"
+                    name={m}
+                    step="0.01"
+                    min={0}
+                    placeholder="Sin conciliar"
+                    className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          </details>
+          <Button type="submit">Abrir caja</Button>
+        </form>
+      ) : (
+        <p className="mt-6 text-sm text-brand-muted">La caja está cerrada.</p>
       )}
 
       <h2 className="mt-8 font-display text-lg">Historial</h2>
@@ -181,37 +158,44 @@ export default async function CajaPage({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-brand-border text-brand-muted">
             <tr>
-              <th className="px-4 py-3">Medio de pago</th>
               <th className="px-4 py-3">Apertura</th>
               <th className="px-4 py-3">Cierre</th>
-              <th className="px-4 py-3">Esperado</th>
-              <th className="px-4 py-3">Real</th>
-              <th className="px-4 py-3">Diferencia</th>
+              <th className="px-4 py-3">Cuentas</th>
             </tr>
           </thead>
           <tbody>
             {closedSessions.map((s) => (
               <tr key={s.id} className="border-b border-brand-border last:border-0">
-                <td className="px-4 py-3">{METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod}</td>
-                <td className="px-4 py-3">{formatDateTime12(s.openedAt)}</td>
-                <td className="px-4 py-3">{s.closedAt ? formatDateTime12(s.closedAt) : "—"}</td>
-                <td className="px-4 py-3">{formatPrice(s.expectedAmount?.toString() ?? "0")}</td>
-                <td className="px-4 py-3">{formatPrice(s.actualAmount?.toString() ?? "0")}</td>
+                <td className="px-4 py-3 align-top">{formatDateTime12(s.openedAt)}</td>
+                <td className="px-4 py-3 align-top">{s.closedAt ? formatDateTime12(s.closedAt) : "—"}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={
-                      s.difference && Number(s.difference) !== 0 ? "font-medium text-brand-accent" : undefined
-                    }
-                  >
-                    {formatPrice(s.difference?.toString() ?? "0")}
-                  </span>
+                  <div className="space-y-1">
+                    {s.accounts.map((a) => (
+                      <div key={a.id} className="flex justify-between gap-4">
+                        <span>{METHOD_LABEL[a.paymentMethod] ?? a.paymentMethod}</span>
+                        <span>
+                          Esperado {formatPrice(a.expectedAmount?.toString() ?? "0")} · Real{" "}
+                          {formatPrice(a.actualAmount?.toString() ?? "0")} ·{" "}
+                          <span
+                            className={
+                              a.difference && Number(a.difference) !== 0
+                                ? "font-medium text-brand-accent"
+                                : undefined
+                            }
+                          >
+                            Dif. {formatPrice(a.difference?.toString() ?? "0")}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </td>
               </tr>
             ))}
             {closedSessions.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-brand-muted">
-                  Todavía no hay sesiones cerradas.
+                <td colSpan={3} className="px-4 py-8 text-center text-brand-muted">
+                  Todavía no hay cajas cerradas.
                 </td>
               </tr>
             )}

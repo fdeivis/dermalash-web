@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAgendaManager, requirePermission } from "@/lib/auth";
 import { logAction } from "@/lib/audit";
 import { createAlert } from "@/lib/alerts";
-import { peruParts } from "@/lib/scheduling";
+import { peruParts, formatDateTime12 } from "@/lib/scheduling";
 import { createAppointmentCore, rescheduleAppointmentCore, cancelAppointmentCore } from "@/lib/appointments/service";
 
 const appointmentSchema = z.object({
@@ -143,7 +143,7 @@ export async function rescheduleAppointment(id: string, formData: FormData) {
     "turno.reprogramar",
     "Appointment",
     id,
-    `${before.startAt.toISOString()} -> ${appointment.startAt.toISOString()}`
+    `${formatDateTime12(before.startAt)} -> ${formatDateTime12(appointment.startAt)}`
   );
   await createAlert(
     "TURNO_MODIFICADO",
@@ -220,7 +220,7 @@ export async function deleteAppointment(id: string) {
     "turno.borrar",
     "Appointment",
     id,
-    `${existing.client.firstName} ${existing.client.lastName} — ${existing.startAt.toISOString()}`
+    `${existing.client.firstName} ${existing.client.lastName} — ${formatDateTime12(existing.startAt)}`
   );
   await createAlert(
     "TURNO_BORRADO",

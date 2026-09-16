@@ -78,7 +78,11 @@ export function ExpenseForm({
             type="date"
             name="date"
             required
-            defaultValue={new Date().toISOString().slice(0, 10)}
+            // `toISOString()` da la fecha en UTC: entre las 7pm y medianoche
+            // en Perú ya es "mañana" en UTC, así que un gasto cargado a esa
+            // hora quedaba fechado un día adelantado. "en-CA" devuelve
+            // YYYY-MM-DD directo, ya en huso de Perú.
+            defaultValue={new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" })}
             className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
           />
         </div>
