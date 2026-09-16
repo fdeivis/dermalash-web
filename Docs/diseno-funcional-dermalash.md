@@ -409,13 +409,13 @@ de exposición pública necesario para recibir mensajes entrantes
 - Nombre/razón social, datos de contacto e identificador fiscal cuando
   exista.
 
-- Registrar servicios/compras asociados con fecha, concepto y monto
-  pagado.
-
 - Evaluación del proveedor: buena, regular o mala.
 
-- Permitir vincular el movimiento a un egreso para evitar registrar el
-  mismo gasto dos veces.
+- **Sin tabla propia de "compras"**: una compra o servicio contratado a
+  un proveedor se registra directamente como un Egreso (sección 11) con
+  ese proveedor asociado — así se evita el riesgo original de cargar el
+  mismo gasto dos veces (una vez como "compra" y otra como "egreso").
+  La ficha del proveedor simplemente lista sus egresos asociados.
 
 # 11. Gastos y egresos — MVP5
 
@@ -424,9 +424,9 @@ de exposición pública necesario para recibir mensajes entrantes
 - Concepto, categoría, fecha, importe, medio de pago,
   comprobante/factura y observaciones.
 
-- Proveedor opcional.
-
-- Empleado obligatorio cuando la categoría corresponda a sueldo.
+- Proveedor opcional; empleado obligatorio cuando la categoría
+  corresponda a sueldo (validado en la aplicación, no es una regla de
+  base de datos).
 
 - Categorías iniciales: alquiler, internet, luz, agua, inventario,
   sueldos y otros.
@@ -434,19 +434,30 @@ de exposición pública necesario para recibir mensajes entrantes
 - Adelanto de ganancias a socios: categoría especial registrable
   únicamente por Socio.
 
-- Los egresos que impacten caja deberán integrarse automáticamente con
-  el módulo de caja.
+- Un egreso pagado en efectivo mientras hay una caja abierta queda
+  asociado a esa caja (ver sección 12); en otro medio de pago, o sin
+  caja abierta, el egreso se registra igual pero sin afectar ningún
+  arqueo de efectivo.
 
 # 12. Caja — MVP5
 
-- Apertura de caja indicando efectivo/saldo inicial.
+**Decisión de modelado**: la Caja concilia únicamente **efectivo**, no
+la totalidad de los medios de pago — Yape, Plin, tarjeta y
+transferencia no están físicamente en la caja para poder contarlos, así
+que quedan fuera del arqueo (aunque el ingreso o egreso igual se
+registra normalmente, solo que no participa del cálculo de la caja).
 
-- Registro automático de ingresos provenientes de sesiones cobradas.
+- Apertura de caja indicando con cuánto efectivo arranca.
 
-- Registro de egresos asociados a la caja.
+- Los ingresos por sesiones cobradas en efectivo (el modelo `Income`
+  que ya genera cada `ClientSession`, sección 8) y los egresos en
+  efectivo registrados mientras la caja está abierta se consultan por
+  rango de fecha al momento del cierre — no hace falta que cada ingreso
+  quede enlazado manualmente a una caja.
 
-- Cierre de caja con saldo esperado y saldo real; registrar
-  diferencias si las hubiera.
+- Cierre de caja: el saldo esperado se calcula solo (efectivo inicial +
+  ingresos en efectivo − egresos en efectivo del período), se ingresa
+  el saldo real contado a mano, y se registra la diferencia si la hay.
 
 - Historial de aperturas y cierres.
 

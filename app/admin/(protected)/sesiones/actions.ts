@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { professionalLabel } from "@/lib/scheduling";
 import { resolveSessionPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
@@ -26,6 +27,9 @@ const sessionSchema = z.object({
   // queda vinculada y el turno pasa a Atendido en la misma operación — no
   // hay un botón manual separado para eso.
   appointmentId: z.string().optional(),
+  discountType: z.enum(["MONTO", "PORCENTAJE"]).optional(),
+  discountValue: z.coerce.number().positive().optional(),
+  discountReason: z.string().max(500, "Máximo 500 caracteres").optional(),
 });
 
 export async function createClientSession(formData: FormData) {
@@ -42,6 +46,9 @@ export async function createClientSession(formData: FormData) {
       paymentMethod: formData.get("paymentMethod"),
       notes: formData.get("notes") || undefined,
       appointmentId: formData.get("appointmentId") || undefined,
+      discountType: formData.get("discountType") || undefined,
+      discountValue: formData.get("discountValue") || undefined,
+      discountReason: formData.get("discountReason") || undefined,
     });
   } catch (error) {
     // Sin esto, enviar el form con algún campo inválido (típicamente: ningún
@@ -55,6 +62,22 @@ export async function createClientSession(formData: FormData) {
     if (clientId) params.set("clientId", String(clientId));
     if (appointmentId) params.set("appointmentId", String(appointmentId));
     redirect(`/admin/sesiones/nuevo?${params}`);
+  }
+
+  // No se confía en el input oculto del formulario para decidir si hay
+  // descuento o no: se revalida el permiso acá mismo, así que alguien sin
+  // el permiso no puede aplicar uno armando el POST a mano.
+  const hasDiscount = Boolean(data.discountType && data.discountValue);
+  if (hasDiscount) {
+    if (!data.discountReason) {
+      const params = new URLSearchParams({ error: "descuento-sin-motivo" });
+      if (data.clientId) params.set("clientId", data.clientId);
+      if (data.appointmentId) params.set("appointmentId", data.appointmentId);
+      redirect(`/admin/sesiones/nuevo?${params}`);
+    }
+    if (!(await hasPermission(session.user.role, "sesiones.aplicar_descuento"))) {
+      throw new Error("No tenés permiso para aplicar descuentos");
+    }
   }
 
   const sessionDate = parseDateTimeLocal(data.sessionDate);
@@ -72,6 +95,9 @@ export async function createClientSession(formData: FormData) {
         sessionDate,
         totalAmount: data.totalAmount,
         paymentMethod: data.paymentMethod,
+        discountType: hasDiscount ? data.discountType : undefined,
+        discountValue: hasDiscount ? data.discountValue : undefined,
+        discountReason: hasDiscount ? data.discountReason : undefined,
         notes: data.notes,
         appointmentId: data.appointmentId,
         createdByUserId: session.user.id,

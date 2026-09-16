@@ -69,6 +69,10 @@ export const PERMISSION_MODULES = [
         label: "Registrar facturas (con o sin turno vinculado, para cualquier cliente)",
       },
       { key: "sesiones.eliminar", label: "Eliminar facturas registradas" },
+      {
+        key: "sesiones.aplicar_descuento",
+        label: "Aplicar descuentos (monto o porcentaje) al registrar una factura",
+      },
     ],
   },
   {

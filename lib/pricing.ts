@@ -92,3 +92,32 @@ export async function resolveSessionPricing(
     appliedPromotionId,
   };
 }
+
+/**
+ * "Foto" de precio para cuando se RESERVA un turno, no para cuando se cobra:
+ * reservar no tiene ningún paso donde el cliente elija una promo (a
+ * diferencia de Facturas), así que acá se detecta automáticamente cualquier
+ * promo vigente que cubra por completo los servicios elegidos — es lo mismo
+ * que ya le dice `obtener_catalogo` al cliente. Reusa la misma lógica de
+ * cobertura de `resolveSessionPricing` para no duplicar reglas.
+ */
+export async function resolveBookingPriceSnapshot(
+  serviceIds: string[],
+  date: Date
+): Promise<PriceLine[]> {
+  const activePromotions = await prisma.promotion.findMany({
+    where: {
+      status: "PUBLISHED",
+      startDate: { lte: endOfDay(peruDayOf(date)) },
+      endDate: { gte: startOfDay(peruDayOf(date)) },
+      promoPrice: { not: null },
+    },
+    select: { id: true },
+  });
+  const resolved = await resolveSessionPricing(
+    serviceIds,
+    activePromotions.map((p) => p.id),
+    date
+  );
+  return resolved.lines;
+}

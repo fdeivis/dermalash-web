@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { AppointmentSource } from "@prisma/client";
+import { resolveBookingPriceSnapshot } from "@/lib/pricing";
 import {
   hasOverlap,
   isWithinSchedule,
@@ -97,6 +98,8 @@ export async function createAppointmentCore(
   if (!withinSchedule && !force) return { ok: false, error: "fuera-de-horario" };
   if (await hasOverlap(input.professionalId, startAt, endAt)) return { ok: false, error: "solapado" };
 
+  const priceLines = await resolveBookingPriceSnapshot(input.serviceIds, startAt);
+
   const appointment = await prisma.appointment.create({
     data: {
       clientId: input.clientId,
@@ -107,7 +110,16 @@ export async function createAppointmentCore(
       forcedOutsideSchedule: !withinSchedule || Boolean(timeOff),
       createdByUserId: input.createdByUserId,
       source: input.source,
-      services: { create: services.map((s) => ({ serviceId: s.id })) },
+      services: {
+        create: services.map((s) => {
+          const line = priceLines.find((l) => l.serviceId === s.id);
+          return {
+            serviceId: s.id,
+            priceAtBooking: line?.priceApplied ?? s.price,
+            promotionAtBookingId: line?.promotionId ?? null,
+          };
+        }),
+      },
     },
     include: APPOINTMENT_DETAILS_INCLUDE,
   });

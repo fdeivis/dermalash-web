@@ -102,6 +102,11 @@ enum MessageRole {
   ASSISTANT
 }
 
+enum DiscountType {
+  MONTO
+  PORCENTAJE
+}
+
 enum PaymentMethod {
   EFECTIVO
   YAPE
@@ -200,6 +205,15 @@ model AppointmentService {
   appointmentId String
   service       Service     @relation(fields: [serviceId], references: [id])
   serviceId     String
+  // "Foto" del precio al momento de reservar (y de la promo vigente, si el
+  // servicio quedaba cubierto por alguna) — para poder honrar lo que se le
+  // dijo al cliente aunque el precio o la promo cambien antes de la
+  // atención real. Se resuelve igual que en Facturas (lib/pricing.ts), pero
+  // detectando la promo automáticamente en vez de que el usuario la elija,
+  // porque reservar un turno no tiene ningún paso de selección de promo.
+  priceAtBooking       Decimal    @db.Decimal(10, 2)
+  promotionAtBooking   Promotion? @relation(fields: [promotionAtBookingId], references: [id])
+  promotionAtBookingId String?
 }
 
 // Bandeja de alertas del panel (creación/modificación/cancelación de
@@ -335,6 +349,12 @@ model ClientSession {
   services         ClientSessionService[]
   totalAmount      Decimal                @db.Decimal(10, 2)
   paymentMethod    PaymentMethod
+  // Monto final ya cobrado con el descuento aplicado (si hubo). Se guardan
+  // el tipo/valor/motivo aparte para trazabilidad — nunca se recalcula el
+  // descuento a partir de otra cosa.
+  discountType     DiscountType?
+  discountValue    Decimal?               @db.Decimal(10, 2)
+  discountReason   String?
   notes            String?
   income           Income?
   // Turno de origen (MVP3): registrar la sesión marca el turno como
@@ -411,6 +431,7 @@ model Promotion {
   order        Int                    @default(0)
   services     Service[]              @relation("PromotionServices")
   sessionLines ClientSessionService[]
+  appointmentServiceLines AppointmentService[]
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
 

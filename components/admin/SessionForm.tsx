@@ -15,6 +15,15 @@ export type AppointmentOption = {
   serviceIds: string[];
   serviceNames: string[];
 };
+export type PriceComparisonLine = {
+  serviceName: string;
+  quotedPrice: number;
+  quotedPromotionName: string | null;
+  quotedPromotionEndDate: string | null;
+  currentPrice: number;
+  currentPromotionName: string | null;
+  currentPromotionEndDate: string | null;
+};
 
 const PAYMENT_METHODS = [
   { value: "EFECTIVO", label: "Efectivo" },
@@ -90,6 +99,8 @@ export function SessionForm({
   getClientAppointments,
   initialAppointments = [],
   defaultValues,
+  priceComparison = [],
+  canApplyDiscount = false,
 }: {
   clients: PersonOption[];
   professionals: PersonOption[];
@@ -105,6 +116,8 @@ export function SessionForm({
     appointmentId?: string;
     sessionDate?: string;
   };
+  priceComparison?: PriceComparisonLine[];
+  canApplyDiscount?: boolean;
 }) {
   const [clientId, setClientId] = useState(defaultValues?.clientId ?? "");
   const [attendedByUserId, setAttendedByUserId] = useState(defaultValues?.attendedByUserId ?? "");
@@ -122,6 +135,10 @@ export function SessionForm({
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [totalTouched, setTotalTouched] = useState(false);
   const [total, setTotal] = useState(0);
+  const [discountEnabled, setDiscountEnabled] = useState(false);
+  const [discountType, setDiscountType] = useState<"MONTO" | "PORCENTAJE">("MONTO");
+  const [discountValue, setDiscountValue] = useState(0);
+  const [discountReason, setDiscountReason] = useState("");
 
   const fetchToken = useRef(0);
   const didInitialAutoPick = useRef(false);
@@ -202,7 +219,15 @@ export function SessionForm({
     [selected, coveredServiceIds, services, promotions, selectedPromotions]
   );
 
-  const displayedTotal = totalTouched ? total : suggestedTotal;
+  const discountAmount =
+    discountEnabled && discountValue > 0
+      ? discountType === "PORCENTAJE"
+        ? (suggestedTotal * discountValue) / 100
+        : discountValue
+      : 0;
+  const suggestedTotalWithDiscount = Math.max(0, suggestedTotal - discountAmount);
+
+  const displayedTotal = totalTouched ? total : suggestedTotalWithDiscount;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     const hasService = new FormData(e.currentTarget).getAll("serviceIds").length > 0;
@@ -257,6 +282,40 @@ export function SessionForm({
               Este cliente no tiene turnos reservados o confirmados pendientes.
             </p>
           )}
+        </div>
+      )}
+
+      {priceComparison.length > 0 && (
+        <div className="rounded-brand border border-brand-border bg-brand-bg p-3 text-sm">
+          <p className="font-medium">Precio cotizado al reservar vs. precio actual</p>
+          <div className="mt-2 space-y-2">
+            {priceComparison.map((line, i) => {
+              const changed = line.quotedPrice !== line.currentPrice;
+              return (
+                <div key={i} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <span>{line.serviceName}</span>
+                  <span className="text-brand-muted">
+                    Cotizado: {formatPrice(line.quotedPrice)}
+                    {line.quotedPromotionName && (
+                      <> ({line.quotedPromotionName}, vigente hasta {line.quotedPromotionEndDate})</>
+                    )}
+                    {" · "}
+                    Actual:{" "}
+                    <span className={changed ? "font-medium text-brand-accent" : undefined}>
+                      {formatPrice(line.currentPrice)}
+                    </span>
+                    {line.currentPromotionName && (
+                      <> ({line.currentPromotionName}, vigente hasta {line.currentPromotionEndDate})</>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-brand-muted">
+            Es solo informativo — el monto sugerido abajo usa el precio actual; ajustalo a mano si
+            corresponde honrar lo cotizado.
+          </p>
         </div>
       )}
 
@@ -357,6 +416,68 @@ export function SessionForm({
         </div>
       )}
 
+      {canApplyDiscount && (
+        <div className="rounded-brand border border-brand-border p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={discountEnabled}
+              onChange={(e) => setDiscountEnabled(e.target.checked)}
+            />
+            Aplicar descuento
+          </label>
+          {discountEnabled && (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium">Tipo</label>
+                  <select
+                    name="discountType"
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as "MONTO" | "PORCENTAJE")}
+                    className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+                  >
+                    <option value="MONTO">Monto fijo (S/)</option>
+                    <option value="PORCENTAJE">Porcentaje (%)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium">
+                    {discountType === "PORCENTAJE" ? "Porcentaje" : "Monto"}
+                  </label>
+                  <input
+                    type="number"
+                    name="discountValue"
+                    step="0.01"
+                    min={0}
+                    max={discountType === "PORCENTAJE" ? 100 : undefined}
+                    value={discountValue || ""}
+                    onChange={(e) => setDiscountValue(Number(e.target.value))}
+                    className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium">Motivo</label>
+                <input
+                  type="text"
+                  name="discountReason"
+                  required={discountEnabled}
+                  value={discountReason}
+                  onChange={(e) => setDiscountReason(e.target.value)}
+                  className="mt-1 w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
+                />
+              </div>
+              {discountAmount > 0 && (
+                <p className="text-xs text-brand-muted">
+                  Descuento aplicado: {formatPrice(discountAmount)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium">Medio de pago</label>
@@ -389,6 +510,7 @@ export function SessionForm({
           />
           <p className="mt-1 text-xs text-brand-muted">
             Sugerido según precio/promos tildadas: {formatPrice(suggestedTotal)}
+            {discountAmount > 0 && <> − {formatPrice(discountAmount)} de descuento = {formatPrice(suggestedTotalWithDiscount)}</>}
           </p>
         </div>
       </div>
