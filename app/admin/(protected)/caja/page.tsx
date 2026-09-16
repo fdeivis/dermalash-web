@@ -85,9 +85,12 @@ export default async function CajaPage({
                 <div key={account.id} className="rounded-brand border border-brand-border p-3">
                   <p className="font-medium">{METHOD_LABEL[account.paymentMethod]}</p>
                   <p className="text-sm text-brand-muted">
-                    Saldo inicial: {formatPrice(account.openingAmount.toString())}
+                    Saldo apertura: {formatPrice(account.openingAmount.toString())}
                   </p>
-                  <p className="text-sm font-medium">Saldo esperado ahora: {formatPrice(account.expected)}</p>
+                  <p className="text-sm text-brand-muted">
+                    Movimiento (ingresos − egresos): {formatPrice(account.expected - Number(account.openingAmount))}
+                  </p>
+                  <p className="text-sm font-medium">Saldo esperado: {formatPrice(account.expected)}</p>
                   {canManage && (
                     <div className="mt-2">
                       <label className="block text-xs font-medium">Saldo real</label>
@@ -174,7 +177,8 @@ export default async function CajaPage({
                       <div key={a.id} className="flex justify-between gap-4">
                         <span>{METHOD_LABEL[a.paymentMethod] ?? a.paymentMethod}</span>
                         <span>
-                          Esperado {formatPrice(a.expectedAmount?.toString() ?? "0")} · Real{" "}
+                          Apertura {formatPrice(a.openingAmount.toString())} · Esperado{" "}
+                          {formatPrice(a.expectedAmount?.toString() ?? "0")} · Real{" "}
                           {formatPrice(a.actualAmount?.toString() ?? "0")} ·{" "}
                           <span
                             className={

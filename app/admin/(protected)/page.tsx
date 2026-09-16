@@ -4,9 +4,11 @@ import { requireAdminSession } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { professionalLabel, formatDateTime12, peruToday, peruDayRange } from "@/lib/scheduling";
 import { computeCashBalance } from "@/lib/cash";
+import { getTurnosPorPeriodo, getVentasPorPeriodo, getIngresosEgresosPorPeriodo, type Period } from "@/lib/dashboardStats";
 import { Button } from "@/components/ui/button";
 import { openCashSession } from "./caja/actions";
 import { formatPrice } from "@/lib/utils";
+import { ChartCard } from "@/components/admin/charts/ChartCard";
 
 // Los contadores deben reflejar siempre el estado actual: las acciones de
 // crear/editar/publicar/eliminar solo revalidan su propio listado
@@ -18,9 +20,20 @@ const STATUS_LABEL: Record<string, string> = {
   CONFIRMADO: "Confirmado",
 };
 
+const METHOD_LABEL: Record<string, string> = {
+  EFECTIVO: "Efectivo",
+  YAPE: "Yape",
+  PLIN: "Plin",
+  TARJETA: "Tarjeta",
+  TRANSFERENCIA: "Transferencia",
+};
+
 export default async function AdminDashboardPage() {
   const session = await requireAdminSession();
   const role = session.user.role;
+  // Los graficos son solo para Socio -- regla dura de rol, mismo patron que
+  // /admin/balance, no un permiso configurable.
+  const canViewCharts = role === "SOCIO" || role === "ADMIN";
   const [
     canManageAgenda,
     canViewServicios,
@@ -84,16 +97,36 @@ export default async function AdminDashboardPage() {
       ? prisma.cashSession.findFirst({ where: { closedAt: null }, include: { accounts: true } })
       : null,
   ]);
-  const efectivoAccount = openSession?.accounts.find((a) => a.paymentMethod === "EFECTIVO");
-  const efectivoExpected = efectivoAccount
-    ? await computeCashBalance(
-        "EFECTIVO",
-        Number(efectivoAccount.openingAmount),
-        openSession!.id,
-        openSession!.openedAt,
-        new Date()
+  const openAccountsWithExpected = openSession
+    ? await Promise.all(
+        openSession.accounts.map(async (account) => ({
+          ...account,
+          expected: await computeCashBalance(
+            account.paymentMethod,
+            Number(account.openingAmount),
+            openSession.id,
+            openSession.openedAt,
+            new Date()
+          ),
+        }))
       )
-    : null;
+    : [];
+
+  const TURNOS_PERIODS: Period[] = ["dia", "semana", "mes", "6meses", "anio"];
+  const MONEY_PERIODS: Period[] = ["dia", "semana", "mes", "anio"];
+  const [turnosByPeriod, ventasByPeriod, ingresosEgresosByPeriod] = canViewCharts
+    ? await Promise.all([
+        Promise.all(TURNOS_PERIODS.map((p) => getTurnosPorPeriodo(p))).then((results) =>
+          Object.fromEntries(TURNOS_PERIODS.map((p, i) => [p, results[i]]))
+        ),
+        Promise.all(MONEY_PERIODS.map((p) => getVentasPorPeriodo(p))).then((results) =>
+          Object.fromEntries(MONEY_PERIODS.map((p, i) => [p, results[i]]))
+        ),
+        Promise.all(MONEY_PERIODS.map((p) => getIngresosEgresosPorPeriodo(p))).then((results) =>
+          Object.fromEntries(MONEY_PERIODS.map((p, i) => [p, results[i]]))
+        ),
+      ])
+    : [{}, {}, {}];
 
   const cards = [
     canViewServicios && { label: "Servicios", count: services, href: "/admin/servicios" },
@@ -189,13 +222,20 @@ export default async function AdminDashboardPage() {
                 </Link>
               </div>
               {openSession ? (
-                <div className="mt-3 space-y-2 text-sm">
-                  <p className="text-brand-muted">
-                    Abierta desde {formatDateTime12(openSession.openedAt)}
-                    {efectivoExpected !== null && (
-                      <> — Efectivo esperado: {formatPrice(efectivoExpected)}</>
-                    )}
-                  </p>
+                <div className="mt-3 space-y-3 text-sm">
+                  <p className="text-brand-muted">Abierta desde {formatDateTime12(openSession.openedAt)}</p>
+                  <div className="space-y-2">
+                    {openAccountsWithExpected.map((account) => (
+                      <div key={account.id} className="rounded-brand border border-brand-border p-2">
+                        <p className="font-medium">{METHOD_LABEL[account.paymentMethod] ?? account.paymentMethod}</p>
+                        <p className="text-xs text-brand-muted">
+                          Apertura {formatPrice(account.openingAmount.toString())} · Movimiento{" "}
+                          {formatPrice(account.expected - Number(account.openingAmount))} · Esperado{" "}
+                          {formatPrice(account.expected)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                   {canManageCaja && (
                     <Link href="/admin/caja">
                       <Button size="sm" variant="outline">
@@ -226,6 +266,88 @@ export default async function AdminDashboardPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {canViewCharts && (
+        <div className="mt-8 space-y-6">
+          <ChartCard
+            title="Turnos"
+            periods={[
+              { key: "dia", label: "Día" },
+              { key: "semana", label: "Semana" },
+              { key: "mes", label: "Mes" },
+              { key: "6meses", label: "6 meses" },
+              { key: "anio", label: "Año" },
+            ]}
+            defaultPeriod="semana"
+            dataByPeriod={Object.fromEntries(
+              Object.entries(turnosByPeriod).map(([period, buckets]) => [
+                period,
+                (buckets as { label: string; reservado: number; confirmadoAtendido: number; cancelado: number }[]).map(
+                  (b) => ({
+                    label: b.label,
+                    values: { reservado: b.reservado, confirmadoAtendido: b.confirmadoAtendido, cancelado: b.cancelado },
+                  })
+                ),
+              ])
+            )}
+            series={[
+              { key: "reservado", label: "Reservado", color: "#2a78d6" },
+              { key: "confirmadoAtendido", label: "Confirmado / Atendido", color: "#eb6834" },
+              { key: "cancelado", label: "Cancelado", color: "#1baf7a" },
+            ]}
+            mode="stacked"
+          />
+
+          <ChartCard
+            title="Ventas"
+            periods={[
+              { key: "dia", label: "Día" },
+              { key: "semana", label: "Semana" },
+              { key: "mes", label: "Mes" },
+              { key: "anio", label: "Año" },
+            ]}
+            defaultPeriod="semana"
+            dataByPeriod={Object.fromEntries(
+              Object.entries(ventasByPeriod).map(([period, buckets]) => [
+                period,
+                (buckets as { label: string; total: number }[]).map((b) => ({
+                  label: b.label,
+                  values: { total: b.total },
+                })),
+              ])
+            )}
+            series={[{ key: "total", label: "Ventas", color: "#2a78d6" }]}
+            mode="grouped"
+            valuePrefix="S/ "
+          />
+
+          <ChartCard
+            title="Ingresos vs. egresos"
+            periods={[
+              { key: "dia", label: "Día" },
+              { key: "semana", label: "Semana" },
+              { key: "mes", label: "Mes" },
+              { key: "anio", label: "Año" },
+            ]}
+            defaultPeriod="semana"
+            dataByPeriod={Object.fromEntries(
+              Object.entries(ingresosEgresosByPeriod).map(([period, buckets]) => [
+                period,
+                (buckets as { label: string; ingresos: number; egresos: number }[]).map((b) => ({
+                  label: b.label,
+                  values: { ingresos: b.ingresos, egresos: b.egresos },
+                })),
+              ])
+            )}
+            series={[
+              { key: "ingresos", label: "Ingresos", color: "#2a78d6" },
+              { key: "egresos", label: "Egresos", color: "#eb6834" },
+            ]}
+            mode="grouped"
+            valuePrefix="S/ "
+          />
         </div>
       )}
     </div>
