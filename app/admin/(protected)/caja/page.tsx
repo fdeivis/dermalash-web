@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/utils";
 import { requirePagePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { computeCashBalance } from "@/lib/cash";
+import { formatDateTime12 } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { openCashSession, closeCashSession } from "./actions";
@@ -44,8 +45,19 @@ export default async function CajaPage({
   ]);
 
   const now = new Date();
+  // Efectivo (la caja física) siempre está visible, se use o no — el resto
+  // de los medios son opcionales: solo aparecen si alguien decidió abrir
+  // una conciliación para ellos.
+  const shownMethods: PaymentMethod[] = [
+    "EFECTIVO",
+    ...openSessions
+      .map((s) => s.paymentMethod)
+      .filter((m): m is PaymentMethod => m !== "EFECTIVO"),
+  ];
+  const addableMethods = RECONCILABLE_METHODS.filter((m) => !shownMethods.includes(m));
+
   const cards = await Promise.all(
-    RECONCILABLE_METHODS.map(async (method) => {
+    shownMethods.map(async (method) => {
       const open = openSessions.find((s) => s.paymentMethod === method);
       const expected = open
         ? await computeCashBalance(method, Number(open.openingAmount), open.openedAt, now)
@@ -58,9 +70,8 @@ export default async function CajaPage({
     <div>
       <h1 className="font-display text-2xl">Caja</h1>
       <p className="mt-2 text-sm text-brand-muted">
-        Conciliación por medio de pago: abrí una sesión con el saldo inicial y cerrala comparando
-        el saldo esperado (calculado) contra el real (contado a mano, o visto en la app del
-        banco/Yape).
+        Efectivo es la caja principal. Si además querés conciliar Yape, Plin, tarjeta o
+        transferencia contra el saldo real de esa cuenta, agregalos abajo.
       </p>
 
       {error && (
@@ -75,9 +86,7 @@ export default async function CajaPage({
             <p className="font-medium">{METHOD_LABEL[method]}</p>
             {open ? (
               <div className="mt-2 space-y-1 text-sm">
-                <p className="text-brand-muted">
-                  Abierta el {open.openedAt.toLocaleString("es-PE")}
-                </p>
+                <p className="text-brand-muted">Abierta el {formatDateTime12(open.openedAt)}</p>
                 <p>Saldo inicial: {formatPrice(open.openingAmount.toString())}</p>
                 <p className="font-medium">Saldo esperado ahora: {formatPrice(expected ?? 0)}</p>
                 {canManage && (
@@ -117,7 +126,7 @@ export default async function CajaPage({
                   className="w-full rounded-brand border border-brand-border px-3 py-2 text-sm"
                 />
                 <Button type="submit" size="sm">
-                  Abrir sesión
+                  Abrir caja
                 </Button>
               </form>
             ) : (
@@ -126,6 +135,46 @@ export default async function CajaPage({
           </div>
         ))}
       </div>
+
+      {canManage && addableMethods.length > 0 && (
+        <div className="mt-4">
+          <details className="rounded-brand border border-dashed border-brand-border p-4">
+            <summary className="cursor-pointer text-sm font-medium">
+              + Conciliar otro medio de pago
+            </summary>
+            <form action={openCashSession} className="mt-3 flex flex-wrap items-end gap-3 text-sm">
+              <div>
+                <label className="block text-xs font-medium">Medio de pago</label>
+                <select
+                  name="paymentMethod"
+                  required
+                  className="mt-1 rounded-brand border border-brand-border px-3 py-2"
+                >
+                  {addableMethods.map((m) => (
+                    <option key={m} value={m}>
+                      {METHOD_LABEL[m]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium">Saldo inicial</label>
+                <input
+                  type="number"
+                  name="openingAmount"
+                  step="0.01"
+                  min={0}
+                  required
+                  className="mt-1 rounded-brand border border-brand-border px-3 py-2"
+                />
+              </div>
+              <Button type="submit" size="sm">
+                Agregar
+              </Button>
+            </form>
+          </details>
+        </div>
+      )}
 
       <h2 className="mt-8 font-display text-lg">Historial</h2>
       <div className="mt-3 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
@@ -144,8 +193,8 @@ export default async function CajaPage({
             {closedSessions.map((s) => (
               <tr key={s.id} className="border-b border-brand-border last:border-0">
                 <td className="px-4 py-3">{METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod}</td>
-                <td className="px-4 py-3">{s.openedAt.toLocaleString("es-PE")}</td>
-                <td className="px-4 py-3">{s.closedAt?.toLocaleString("es-PE")}</td>
+                <td className="px-4 py-3">{formatDateTime12(s.openedAt)}</td>
+                <td className="px-4 py-3">{s.closedAt ? formatDateTime12(s.closedAt) : "—"}</td>
                 <td className="px-4 py-3">{formatPrice(s.expectedAmount?.toString() ?? "0")}</td>
                 <td className="px-4 py-3">{formatPrice(s.actualAmount?.toString() ?? "0")}</td>
                 <td className="px-4 py-3">

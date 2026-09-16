@@ -46,8 +46,16 @@ export default async function VerProveedorPage({
           <dd>{supplier.taxId || "—"}</dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-brand-muted">Contacto</dt>
-          <dd className="text-right">{supplier.contactInfo || "—"}</dd>
+          <dt className="text-brand-muted">Teléfono</dt>
+          <dd>{supplier.phone || "—"}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-brand-muted">WhatsApp</dt>
+          <dd>{supplier.whatsapp || "—"}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-brand-muted">Correo</dt>
+          <dd>{supplier.email || "—"}</dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-brand-muted">Evaluación</dt>

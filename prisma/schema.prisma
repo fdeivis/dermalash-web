@@ -476,13 +476,18 @@ model Post {
 // no poder cargar el mismo gasto dos veces (una vez como "compra" y otra
 // como "egreso").
 model Supplier {
-  id          String          @id @default(cuid())
-  name        String
-  taxId       String?
-  contactInfo String?
-  rating      SupplierRating?
-  expenses    Expense[]
-  createdAt   DateTime        @default(now())
+  id        String          @id @default(cuid())
+  name      String
+  taxId     String?
+  // Al menos uno de los tres es obligatorio (validado en la Server Action,
+  // no acá, porque no hay una forma limpia de expresar "al menos uno de
+  // estos tres campos" a nivel de columna).
+  phone     String?
+  whatsapp  String?
+  email     String?
+  rating    SupplierRating?
+  expenses  Expense[]
+  createdAt DateTime        @default(now())
 }
 
 // MVP5: conciliación de una cuenta/medio de pago (no solo la caja física de
