@@ -21,7 +21,6 @@ export const dynamic = "force-dynamic";
 const ERROR_LABEL: Record<string, string> = {
   "fuera-de-horario":
     "Ese horario está fuera del horario habitual del profesional. Marcá \"Forzar\" si igual querés reprogramarlo ahí.",
-  solapado: "El profesional ya tiene un turno en ese horario.",
   feriado:
     "Ese día el profesional tiene una ausencia o es feriado. Marcá \"Forzar\" si igual querés reprogramarlo ahí.",
 };

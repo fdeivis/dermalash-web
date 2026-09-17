@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import type { AppointmentSource } from "@prisma/client";
 import { resolveBookingPriceSnapshot } from "@/lib/pricing";
 import {
-  hasOverlap,
   isWithinSchedule,
   getTimeOffForDay,
   getDayAgenda,
@@ -27,7 +26,6 @@ import {
  */
 
 export type AppointmentActionError =
-  | "solapado"
   | "fuera-de-horario"
   | "feriado"
   | "servicio-invalido"
@@ -96,7 +94,12 @@ export async function createAppointmentCore(
 
   if (timeOff && !force) return { ok: false, error: "feriado" };
   if (!withinSchedule && !force) return { ok: false, error: "fuera-de-horario" };
-  if (await hasOverlap(input.professionalId, startAt, endAt)) return { ok: false, error: "solapado" };
+  // A propósito, sin chequeo de solapamiento: decisión de negocio (la
+  // mayoría de los turnos reservados no se concretan, así que restringir
+  // por "la esteticista ya tiene algo a esa hora" pierde más oportunidades
+  // de las que evita). Varias clientas pueden quedar anotadas a la misma
+  // hora con la misma esteticista; si eso genera saturación real, se
+  // bloquea el horario a mano con una ausencia (Agenda > Horarios), no acá.
 
   const priceLines = await resolveBookingPriceSnapshot(input.serviceIds, startAt);
 
@@ -158,7 +161,7 @@ export async function rescheduleAppointmentCore(
 
   if (timeOff && !force) return { ok: false, error: "feriado" };
   if (!withinSchedule && !force) return { ok: false, error: "fuera-de-horario" };
-  if (await hasOverlap(input.professionalId, startAt, endAt, id)) return { ok: false, error: "solapado" };
+  // Sin chequeo de solapamiento acá tampoco — ver nota en createAppointmentCore.
 
   const appointment = await prisma.appointment.update({
     where: { id },
@@ -210,11 +213,6 @@ function toDateKey(date: Date) {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
-function minutesSincePeruMidnight(instant: Date) {
-  const { hour, minute } = peruParts(instant);
-  return hour * 60 + minute;
-}
-
 /**
  * Franjas realmente libres para un conjunto de servicios, reusando la misma
  * fuente de verdad que la grilla visual de la Agenda (`getDayAgenda`): sin
@@ -244,10 +242,10 @@ export async function getAvailableSlots(input: {
     for (const d of relevant) {
       if (d.onTimeOff && d.onTimeOff.startMinute === null) continue; // ausencia todo el día
 
-      const busyRanges = d.appointments
-        .filter((a) => a.status !== "CANCELADO" && a.status !== "NO_ASISTIO")
-        .map((a) => ({ start: minutesSincePeruMidnight(a.startAt), end: minutesSincePeruMidnight(a.endAt) }));
-
+      // A propósito, no se descarta un horario porque ya tenga un turno
+      // (decisión de negocio: no restringir por disponibilidad, ver nota en
+      // createAppointmentCore) — un horario solo se cae por estar fuera del
+      // horario laboral o por una ausencia explícita.
       const slots: string[] = [];
       for (const block of d.schedule) {
         for (let start = block.startMinute; start + totalMinutes <= block.endMinute; start += SLOT_STEP_MINUTES) {
@@ -264,14 +262,13 @@ export async function getAvailableSlots(input: {
             start % 60
           );
           if (slotStart <= now) continue;
-          const overlapsBusy = busyRanges.some((b) => start < b.end && b.start < end);
           const overlapsTimeOff =
             d.onTimeOff &&
             d.onTimeOff.startMinute !== null &&
             d.onTimeOff.endMinute !== null &&
             start < d.onTimeOff.endMinute &&
             d.onTimeOff.startMinute < end;
-          if (!overlapsBusy && !overlapsTimeOff) slots.push(minutesToTime(start));
+          if (!overlapsTimeOff) slots.push(minutesToTime(start));
         }
       }
       if (slots.length > 0) {

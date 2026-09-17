@@ -40,7 +40,6 @@ function parseAppointmentForm(formData: FormData) {
 const ERROR_REDIRECT: Record<string, string> = {
   feriado: "feriado",
   "fuera-de-horario": "fuera-de-horario",
-  solapado: "solapado",
   "servicio-invalido": "servicio-invalido",
 };
 

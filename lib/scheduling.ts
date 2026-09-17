@@ -19,19 +19,22 @@ export {
   peruDayRange,
 } from "@/lib/time";
 
-/** Profesionales que pueden tener turnos: Esteticistas y Encargados activos
- * (un Encargado "atiende" simplemente si además tiene horario cargado). */
+/** Profesionales que pueden tener turnos: Esteticistas, Encargados y Socios
+ * activos (Encargado/Socio "atienden" simplemente si además tienen horario
+ * cargado, igual que una Esteticista). */
 export async function getSchedulableProfessionals() {
   return prisma.adminUser.findMany({
-    where: { active: true, role: { in: ["ESTETICISTA", "ENCARGADO"] } },
+    where: { active: true, role: { in: ["ESTETICISTA", "ENCARGADO", "SOCIO"] } },
     orderBy: { name: "asc" },
   });
 }
 
-/** Aclara en la agenda/selects que esa persona es la Encargada, no otra
- * esteticista más (relevante porque puede o no atender clientes). */
+/** Aclara en la agenda/selects que esa persona es la Encargada o la Socia,
+ * no otra esteticista más (relevante porque puede o no atender clientes). */
 export function professionalLabel(p: { name: string; role: string }) {
-  return p.role === "ENCARGADO" ? `${p.name} (Encargada)` : p.name;
+  if (p.role === "ENCARGADO") return `${p.name} (Encargada)`;
+  if (p.role === "SOCIO") return `${p.name} (Socia)`;
+  return p.name;
 }
 
 // adminUserId null en el TimeOff = aplica a todos los profesionales (ej. un
@@ -134,25 +137,6 @@ export async function getDayAgenda(day: Date): Promise<DayAgenda[]> {
     timeOffs,
     appointments: appointments.filter((a) => a.professionalId === professional.id),
   }));
-}
-
-/** Nunca dos turnos superpuestos para el mismo profesional (regla dura, sección 8.3). */
-export async function hasOverlap(
-  professionalId: string,
-  startAt: Date,
-  endAt: Date,
-  excludeAppointmentId?: string
-) {
-  const overlapping = await prisma.appointment.findFirst({
-    where: {
-      professionalId,
-      status: { notIn: ["CANCELADO", "NO_ASISTIO"] },
-      id: excludeAppointmentId ? { not: excludeAppointmentId } : undefined,
-      startAt: { lt: endAt },
-      endAt: { gt: startAt },
-    },
-  });
-  return Boolean(overlapping);
 }
 
 /** [startAt, endAt) debe caer dentro de algún bloque de horario del profesional ese día de semana. */
