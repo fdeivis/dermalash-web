@@ -39,13 +39,14 @@ export default async function AdminSesionesPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-brand-border text-brand-muted">
             <tr>
-              <th className="px-4 py-3">Fecha y hora</th>
+              <th className="px-4 py-3">Fecha de atención</th>
+              <th className="px-4 py-3">Emitida</th>
               <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Servicios</th>
               <th className="px-4 py-3">Profesional</th>
               <th className="px-4 py-3">Medio de pago</th>
               <th className="px-4 py-3">Total</th>
-              {canDelete && <th className="px-4 py-3">Acciones</th>}
+              <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -53,6 +54,9 @@ export default async function AdminSesionesPage() {
               <tr key={session.id} className="border-b border-brand-border last:border-0">
                 <td className="px-4 py-3">
                   {formatDateTime12(session.sessionDate)}
+                </td>
+                <td className="px-4 py-3 text-brand-muted">
+                  {formatDateTime12(session.createdAt)}
                 </td>
                 <td className="px-4 py-3">
                   <Link href={`/admin/clientes/${session.clientId}`} className="underline">
@@ -65,25 +69,32 @@ export default async function AdminSesionesPage() {
                 <td className="px-4 py-3">{professionalLabel(session.attendedBy)}</td>
                 <td className="px-4 py-3">{PAYMENT_LABEL[session.paymentMethod]}</td>
                 <td className="px-4 py-3">{formatPrice(session.totalAmount.toString())}</td>
-                {canDelete && (
-                  <td className="px-4 py-3">
-                    <form action={deleteClientSession.bind(null, session.id)}>
-                      <ConfirmSubmitButton
-                        type="submit"
-                        variant="danger"
-                        size="sm"
-                        confirmMessage="¿Eliminar esta factura? También se elimina el ingreso asociado. No se puede deshacer."
-                      >
-                        Eliminar
-                      </ConfirmSubmitButton>
-                    </form>
-                  </td>
-                )}
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/admin/sesiones/${session.id}`}>
+                      <Button variant="outline" size="sm">
+                        Ver
+                      </Button>
+                    </Link>
+                    {canDelete && (
+                      <form action={deleteClientSession.bind(null, session.id)}>
+                        <ConfirmSubmitButton
+                          type="submit"
+                          variant="danger"
+                          size="sm"
+                          confirmMessage="¿Eliminar esta factura? También se elimina el ingreso asociado. No se puede deshacer."
+                        >
+                          Eliminar
+                        </ConfirmSubmitButton>
+                      </form>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
             {sessions.length === 0 && (
               <tr>
-                <td colSpan={canDelete ? 7 : 6} className="px-4 py-8 text-center text-brand-muted">
+                <td colSpan={8} className="px-4 py-8 text-center text-brand-muted">
                   Todavía no hay facturas registradas.
                 </td>
               </tr>
