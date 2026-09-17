@@ -13,6 +13,7 @@ const employeeSchema = z.object({
   firstName: z.string().min(1, "El nombre es obligatorio"),
   lastName: z.string().min(1, "El apellido es obligatorio"),
   role: z.enum(["SOCIO", "ENCARGADO", "ESTETICISTA"]),
+  canAttend: z.boolean(),
   address: z.string().optional(),
   birthDate: z.coerce.date().optional(),
   documentId: z.string().optional(),
@@ -31,6 +32,7 @@ function parseEmployeeFormData(formData: FormData) {
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
     role: formData.get("role"),
+    canAttend: formData.get("canAttend") === "on",
     address: formData.get("address") || undefined,
     birthDate: formData.get("birthDate") || undefined,
     documentId: formData.get("documentId") || undefined,
@@ -56,6 +58,7 @@ export async function createEmployee(formData: FormData) {
         passwordHash,
         name: `${data.firstName} ${data.lastName}`,
         role: data.role,
+        canAttend: data.canAttend,
       },
     });
     return tx.employee.create({
@@ -114,11 +117,13 @@ export async function updateEmployee(id: string, formData: FormData) {
     const adminUserData: {
       name: string;
       role: typeof data.role;
+      canAttend: boolean;
       email: string;
       passwordHash?: string;
     } = {
       name: `${data.firstName} ${data.lastName}`,
       role: data.role,
+      canAttend: data.canAttend,
       email: data.email.toLowerCase(),
     };
     if (newPassword && String(newPassword).length >= 8) {

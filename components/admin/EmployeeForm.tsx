@@ -51,6 +51,15 @@ export function EmployeeForm({
         </select>
       </div>
 
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="canAttend"
+          defaultChecked={employee?.adminUser.canAttend ?? true}
+        />
+        Atiende clientes (permite cargarle horario y aparece en la grilla de Agenda)
+      </label>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium">Dirección</label>

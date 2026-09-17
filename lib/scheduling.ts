@@ -19,12 +19,13 @@ export {
   peruDayRange,
 } from "@/lib/time";
 
-/** Profesionales que pueden tener turnos: Esteticistas, Encargados y Socios
- * activos (Encargado/Socio "atienden" simplemente si además tienen horario
- * cargado, igual que una Esteticista). */
+/** Profesionales que pueden tener turnos: cualquier AdminUser activo marcado
+ * como "atiende" (`canAttend`), sin importar su rol — el rol define
+ * permisos, `canAttend` define si aparece en la grilla y puede tener
+ * horario cargado (se habilita desde la ficha de Empleado). */
 export async function getSchedulableProfessionals() {
   return prisma.adminUser.findMany({
-    where: { active: true, role: { in: ["ESTETICISTA", "ENCARGADO", "SOCIO"] } },
+    where: { active: true, canAttend: true },
     orderBy: { name: "asc" },
   });
 }

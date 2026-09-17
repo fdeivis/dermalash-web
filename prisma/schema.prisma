@@ -149,6 +149,10 @@ model AdminUser {
   name                   String
   role                   Role            @default(ESTETICISTA)
   active                 Boolean         @default(true)
+  // Independiente del rol (que solo define permisos): si atiende clientes y
+  // por lo tanto puede tener horario cargado y aparecer en la grilla de
+  // Agenda. Ver getSchedulableProfessionals en lib/scheduling.ts.
+  canAttend              Boolean         @default(false)
   employee               Employee?
   clientSessionsAttended ClientSession[] @relation("AttendedBy")
   schedules              Schedule[]

@@ -50,6 +50,7 @@ export default async function AdminEmpleadosPage({
             <tr>
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Tipo</th>
+              <th className="px-4 py-3">Atiende</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Acciones</th>
@@ -62,6 +63,11 @@ export default async function AdminEmpleadosPage({
                   {employee.firstName} {employee.lastName}
                 </td>
                 <td className="px-4 py-3">{ROLE_LABEL[employee.adminUser.role]}</td>
+                <td className="px-4 py-3">
+                  <Badge variant={employee.adminUser.canAttend ? "published" : "draft"}>
+                    {employee.adminUser.canAttend ? "Sí" : "No"}
+                  </Badge>
+                </td>
                 <td className="px-4 py-3">{employee.adminUser.email}</td>
                 <td className="px-4 py-3">
                   <Badge variant={employee.active ? "published" : "draft"}>
@@ -100,7 +106,7 @@ export default async function AdminEmpleadosPage({
             ))}
             {employees.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-brand-muted">
+                <td colSpan={6} className="px-4 py-8 text-center text-brand-muted">
                   Todavía no hay empleados cargados.
                 </td>
               </tr>

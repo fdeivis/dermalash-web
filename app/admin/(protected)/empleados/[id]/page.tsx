@@ -56,6 +56,14 @@ export default async function VerEmpleadoPage({
           <dd>{ROLE_LABEL[employee.adminUser.role]}</dd>
         </div>
         <div className="flex justify-between gap-4">
+          <dt className="text-brand-muted">Atiende clientes</dt>
+          <dd>
+            <Badge variant={employee.adminUser.canAttend ? "published" : "draft"}>
+              {employee.adminUser.canAttend ? "Sí" : "No"}
+            </Badge>
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4">
           <dt className="text-brand-muted">Estado</dt>
           <dd>
             <Badge variant={employee.active ? "published" : "draft"}>
