@@ -8,6 +8,34 @@ import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteService, moveService, setServiceStatus } from "./actions";
 
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: "Borrador",
+  ACTIVO: "Activo",
+  PUBLISHED: "Publicado",
+};
+
+const STATUS_BADGE: Record<string, "draft" | "active" | "published"> = {
+  DRAFT: "draft",
+  ACTIVO: "active",
+  PUBLISHED: "published",
+};
+
+// Transiciones ofrecidas desde cada estado: Borrador -> Activo o directo a
+// Publicado; Activo -> volver a Borrador o Publicar; Publicado -> solo
+// despublicar (vuelve a Activo, no a Borrador, para no perder de vista que
+// ya se armó bien y solo se sacó de la web).
+const STATUS_TRANSITIONS: Record<string, { to: "DRAFT" | "ACTIVO" | "PUBLISHED"; label: string }[]> = {
+  DRAFT: [
+    { to: "ACTIVO", label: "Activar" },
+    { to: "PUBLISHED", label: "Publicar" },
+  ],
+  ACTIVO: [
+    { to: "DRAFT", label: "Volver a borrador" },
+    { to: "PUBLISHED", label: "Publicar" },
+  ],
+  PUBLISHED: [{ to: "ACTIVO", label: "Despublicar" }],
+};
+
 export default async function AdminServiciosPage({
   searchParams,
 }: {
@@ -82,9 +110,7 @@ export default async function AdminServiciosPage({
                   {formatPrice(service.price.toString())}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={service.status === "PUBLISHED" ? "published" : "draft"}>
-                    {service.status === "PUBLISHED" ? "Publicado" : "Borrador"}
-                  </Badge>
+                  <Badge variant={STATUS_BADGE[service.status]}>{STATUS_LABEL[service.status]}</Badge>
                 </td>
                 {canManage && (
                   <td className="px-4 py-3">
@@ -94,17 +120,13 @@ export default async function AdminServiciosPage({
                           Editar
                         </Button>
                       </Link>
-                      <form
-                        action={setServiceStatus.bind(
-                          null,
-                          service.id,
-                          service.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED"
-                        )}
-                      >
-                        <Button type="submit" variant="outline" size="sm">
-                          {service.status === "PUBLISHED" ? "Despublicar" : "Publicar"}
-                        </Button>
-                      </form>
+                      {STATUS_TRANSITIONS[service.status].map((transition) => (
+                        <form key={transition.to} action={setServiceStatus.bind(null, service.id, transition.to)}>
+                          <Button type="submit" variant="outline" size="sm">
+                            {transition.label}
+                          </Button>
+                        </form>
+                      ))}
                       <form action={deleteService.bind(null, service.id)}>
                         <ConfirmSubmitButton
                           type="submit"

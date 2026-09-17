@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/auth";
 import { getSchedulableProfessionals, professionalLabel } from "@/lib/scheduling";
+import { getBookableServices } from "@/lib/content";
 import { AppointmentForm } from "@/components/admin/AppointmentForm";
 import { createAppointment } from "../actions";
 
@@ -33,7 +34,7 @@ export default async function NuevoTurnoPage({
   const [clients, professionals, services] = await Promise.all([
     prisma.client.findMany({ orderBy: { lastName: "asc" } }),
     getSchedulableProfessionals(),
-    prisma.service.findMany({ where: { status: "PUBLISHED" }, orderBy: { order: "asc" } }),
+    getBookableServices(),
   ]);
 
   return (

@@ -1,5 +1,17 @@
 import { prisma } from "@/lib/prisma";
 
+// A diferencia de getPublishedServices (solo lo que se ve en la web
+// pública), esto es para uso de staff/sistema: Agenda, Facturas,
+// Promociones y el catálogo que ofrece el asistente de WhatsApp. Un
+// servicio en ACTIVO ya se puede agendar/facturar/cotizar aunque todavía
+// no tenga foto o descripción lista para publicarse en la web.
+export function getBookableServices() {
+  return prisma.service.findMany({
+    where: { status: { in: ["ACTIVO", "PUBLISHED"] } },
+    orderBy: { order: "asc" },
+  });
+}
+
 export function getPublishedServices() {
   return prisma.service.findMany({
     where: { status: "PUBLISHED" },

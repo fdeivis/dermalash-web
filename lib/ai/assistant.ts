@@ -14,6 +14,7 @@ import {
   findAvailableProfessional,
 } from "@/lib/appointments/service";
 import { createAlert } from "@/lib/alerts";
+import { getBookableServices } from "@/lib/content";
 import { getSystemAssistantUserId } from "@/lib/ai/systemUser";
 import type { MessagingProvider } from "@/lib/messaging/provider";
 import { WhatsAppCloudProvider } from "@/lib/messaging/whatsappCloud";
@@ -263,7 +264,7 @@ function buildTools(opts: {
   const obtenerCatalogo = betaZodTool({
     name: "obtener_catalogo",
     description:
-      "Devuelve los servicios publicados y las promociones vigentes hoy, con precios y duraciones reales. Llamar siempre antes de mencionar cualquier precio, duración o promoción — nunca inventar esos datos.",
+      "Devuelve los servicios ofrecibles (publicados o activos) y las promociones vigentes hoy, con precios y duraciones reales. Llamar siempre antes de mencionar cualquier precio, duración o promoción — nunca inventar esos datos.",
     inputSchema: z.object({}),
     run: async () => {
       // Mismo criterio que ya usa el resto del sitio (ej. sesiones/nuevo)
@@ -273,7 +274,7 @@ function buildTools(opts: {
       // afuera por unas horas de diferencia de huso horario.
       const today = peruToday();
       const [services, promotions] = await Promise.all([
-        prisma.service.findMany({ where: { status: "PUBLISHED" }, orderBy: { order: "asc" } }),
+        getBookableServices(),
         prisma.promotion.findMany({
           where: { status: "PUBLISHED", startDate: { lte: endOfDay(today) }, endDate: { gte: today } },
           include: { services: true },

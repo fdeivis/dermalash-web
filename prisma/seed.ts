@@ -30,12 +30,13 @@ async function main() {
 
   const esteticistaUser = await prisma.adminUser.upsert({
     where: { email: "esteticista@dermalash.pe" },
-    update: { role: "ESTETICISTA" },
+    update: { role: "ESTETICISTA", canAttend: true },
     create: {
       email: "esteticista@dermalash.pe",
       passwordHash,
       name: "Ana Esteticista",
       role: "ESTETICISTA",
+      canAttend: true,
     },
   });
 
@@ -54,12 +55,13 @@ async function main() {
   // Empleados, ver /admin/permisos).
   const encargadoUser = await prisma.adminUser.upsert({
     where: { email: "encargado@dermalash.pe" },
-    update: { role: "ENCARGADO" },
+    update: { role: "ENCARGADO", canAttend: true },
     create: {
       email: "encargado@dermalash.pe",
       passwordHash,
       name: "Luis Encargado",
       role: "ENCARGADO",
+      canAttend: true,
     },
   });
 

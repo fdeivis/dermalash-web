@@ -14,11 +14,14 @@ export default async function EditarPromocionPage({
   const promotion = await prisma.promotion.findUnique({ where: { id }, include: { services: true } });
   if (!promotion) notFound();
 
-  // Solo se ofrecen servicios publicados para agregar, pero los que ya
-  // estaban asociados (aunque después se hayan pasado a borrador) se
-  // mantienen visibles para no sacarlos de la promoción sin querer.
+  // Solo se ofrecen servicios agendables (Activo o Publicado) para agregar,
+  // pero los que ya estaban asociados (aunque después se hayan pasado a
+  // borrador) se mantienen visibles para no sacarlos de la promoción sin
+  // querer.
   const allServices = await prisma.service.findMany({
-    where: { OR: [{ status: "PUBLISHED" }, { id: { in: promotion.services.map((s) => s.id) } }] },
+    where: {
+      OR: [{ status: { in: ["ACTIVO", "PUBLISHED"] } }, { id: { in: promotion.services.map((s) => s.id) } }],
+    },
     orderBy: { order: "asc" },
   });
 

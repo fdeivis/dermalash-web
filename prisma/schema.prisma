@@ -34,6 +34,18 @@ enum ContentStatus {
   PUBLISHED
 }
 
+// Estado propio de Service (no ContentStatus, que comparten Promotion/Post y
+// para las que un estado intermedio no tiene sentido): DRAFT = todavía no
+// existe para nadie (ni para agendar/facturar); ACTIVO = ya se puede agendar,
+// facturar, armar en promociones y ofrecer por WhatsApp, pero no aparece en
+// la web pública (ej. falta la foto); PUBLISHED = todo lo anterior + visible
+// en la web.
+enum ServiceStatus {
+  DRAFT
+  ACTIVO
+  PUBLISHED
+}
+
 // Permisos por rol, administrables desde /admin/permisos (Socio/Admin).
 // Admin nunca tiene restricciones (no genera filas acá, se resuelve en
 // código): esta tabla solo cubre Socio/Encargado/Esteticista, para poder
@@ -435,7 +447,7 @@ model Service {
   // ficha del servicio).
   showInCarousel   Boolean                @default(false)
   carouselImage    String?
-  status           ContentStatus          @default(DRAFT)
+  status           ServiceStatus          @default(DRAFT)
   order            Int                    @default(0)
   promotions       Promotion[]            @relation("PromotionServices")
   sessionLines     ClientSessionService[]

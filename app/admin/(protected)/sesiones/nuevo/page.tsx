@@ -4,6 +4,7 @@ import { professionalLabel, peruParts, peruToday, endOfDay } from "@/lib/schedul
 import { requirePagePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { resolveBookingPriceSnapshot } from "@/lib/pricing";
+import { getBookableServices } from "@/lib/content";
 import { SessionForm } from "@/components/admin/SessionForm";
 import { createClientSession, getClientOpenAppointments } from "../actions";
 
@@ -99,7 +100,7 @@ export default async function NuevaSesionPage({
   const [clients, professionals, services, promotions] = await Promise.all([
     prisma.client.findMany({ orderBy: { lastName: "asc" } }),
     prisma.adminUser.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
-    prisma.service.findMany({ where: { status: "PUBLISHED" }, orderBy: { order: "asc" } }),
+    getBookableServices(),
     prisma.promotion.findMany({
       where: {
         status: "PUBLISHED",

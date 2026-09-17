@@ -105,16 +105,16 @@ export async function deleteService(id: string) {
   redirect("/admin/servicios");
 }
 
-export async function setServiceStatus(id: string, status: "DRAFT" | "PUBLISHED") {
+const STATUS_ACTION: Record<"DRAFT" | "ACTIVO" | "PUBLISHED", string> = {
+  DRAFT: "servicio.marcar_borrador",
+  ACTIVO: "servicio.activar",
+  PUBLISHED: "servicio.publicar",
+};
+
+export async function setServiceStatus(id: string, status: "DRAFT" | "ACTIVO" | "PUBLISHED") {
   const session = await requirePermission("servicios.gestionar");
   const service = await prisma.service.update({ where: { id }, data: { status } });
-  await logAction(
-    session,
-    status === "PUBLISHED" ? "servicio.publicar" : "servicio.despublicar",
-    "Service",
-    id,
-    service.name
-  );
+  await logAction(session, STATUS_ACTION[status], "Service", id, service.name);
   revalidatePath("/admin/servicios");
   revalidatePath("/tratamientos");
   revalidatePath("/");
