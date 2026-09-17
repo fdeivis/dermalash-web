@@ -617,11 +617,21 @@ async function runAssistantTurnLocked(
   const clientState: ClientState = { id: clientId };
 
   const cutoff = new Date(Date.now() - HISTORY_WINDOW_HOURS * 3600_000);
-  const history = await prisma.message.findMany({
+  // orderBy desc + take trae los últimos N mensajes (los más recientes);
+  // se revierte después para que el array quede en orden cronológico. Con
+  // "asc" + take, una conversación de más de MAX_HISTORY_MESSAGES mensajes
+  // se cortaba desde el PRINCIPIO — el mensaje recién escrito por el
+  // cliente quedaba afuera, y el historial le llegaba a la API terminando
+  // siempre en una respuesta del asistente en vez de en el mensaje del
+  // cliente (bug real en producción: fallaba en todos los turnos
+  // siguientes de cualquier conversación que superara los 30 mensajes,
+  // algo que las pruebas cortas de esta sesión nunca llegaron a cubrir).
+  const recentMessages = await prisma.message.findMany({
     where: { conversationId, createdAt: { gte: cutoff } },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
     take: MAX_HISTORY_MESSAGES,
   });
+  const history = recentMessages.reverse();
 
   const messages: Anthropic.MessageParam[] = history.map((m) => ({
     role: m.role === "ASSISTANT" ? "assistant" : "user",
