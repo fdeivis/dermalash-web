@@ -405,6 +405,13 @@ model Income {
   amount        Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod
   occurredAt    DateTime      @default(now())
+  // Igual que Expense.cashSessionId: si hay una caja abierta arqueando este
+  // medio de pago al momento de cobrar, el ingreso queda vinculado a esa
+  // sesión — así el saldo esperado de la caja no depende de comparar
+  // instantes reales contra rangos de fecha (que puede ambiguar cuando la
+  // caja queda abierta más de un día).
+  cashSession   CashSession?  @relation(fields: [cashSessionId], references: [id])
+  cashSessionId String?
   createdAt     DateTime      @default(now())
 }
 
@@ -503,6 +510,7 @@ model CashSession {
   notes          String?
   accounts       CashSessionAccount[]
   expenses       Expense[]
+  incomes        Income[]
   createdAt      DateTime             @default(now())
 
   @@index([closedAt])
@@ -510,7 +518,7 @@ model CashSession {
 
 // Una cuenta/medio de pago dentro de una sesión de caja: saldo inicial al
 // abrir, esperado y real al cerrar (se calcula de Income/Expense de ese
-// medio de pago durante la ventana de la sesión, ver lib/cash.ts).
+// medio de pago ya vinculados a esta sesión, ver lib/cash.ts).
 model CashSessionAccount {
   id             String        @id @default(cuid())
   cashSession    CashSession   @relation(fields: [cashSessionId], references: [id])

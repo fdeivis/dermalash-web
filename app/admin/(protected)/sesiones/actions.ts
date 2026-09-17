@@ -87,6 +87,14 @@ export async function createClientSession(formData: FormData) {
   // la sesión, aunque el usuario la haya cambiado a una fecha pasada.
   const resolved = await resolveSessionPricing(data.serviceIds, data.promotionIds, sessionDate);
 
+  // Un ingreso en un medio que la caja abierta está arqueando queda
+  // enlazado automáticamente a esa sesión — mismo patrón que los egresos
+  // (sección 12 del diseño funcional), para que el saldo esperado de la
+  // caja no dependa de comparar por rango de fechas.
+  const openCashSession = await prisma.cashSession.findFirst({
+    where: { closedAt: null, accounts: { some: { paymentMethod: data.paymentMethod } } },
+  });
+
   const clientSession = await prisma.$transaction(async (tx) => {
     const created = await tx.clientSession.create({
       data: {
@@ -119,6 +127,7 @@ export async function createClientSession(formData: FormData) {
         amount: data.totalAmount,
         paymentMethod: data.paymentMethod,
         occurredAt: sessionDate,
+        cashSessionId: openCashSession?.id ?? null,
       },
     });
 

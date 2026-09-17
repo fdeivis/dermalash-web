@@ -101,13 +101,7 @@ export default async function AdminDashboardPage() {
     ? await Promise.all(
         openSession.accounts.map(async (account) => ({
           ...account,
-          expected: await computeCashBalance(
-            account.paymentMethod,
-            Number(account.openingAmount),
-            openSession.id,
-            openSession.openedAt,
-            new Date()
-          ),
+          ...(await computeCashBalance(account.paymentMethod, Number(account.openingAmount), openSession.id)),
         }))
       )
     : [];
@@ -229,8 +223,8 @@ export default async function AdminDashboardPage() {
                       <div key={account.id} className="rounded-brand border border-brand-border p-2">
                         <p className="font-medium">{METHOD_LABEL[account.paymentMethod] ?? account.paymentMethod}</p>
                         <p className="text-xs text-brand-muted">
-                          Apertura {formatPrice(account.openingAmount.toString())} · Movimiento{" "}
-                          {formatPrice(account.expected - Number(account.openingAmount))} · Esperado{" "}
+                          Apertura {formatPrice(account.openingAmount.toString())} · Ingresos{" "}
+                          {formatPrice(account.ingresos)} · Egresos {formatPrice(account.egresos)} · Esperado{" "}
                           {formatPrice(account.expected)}
                         </p>
                       </div>

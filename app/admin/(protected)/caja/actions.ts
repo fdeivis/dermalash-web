@@ -71,16 +71,15 @@ export async function closeCashSession(id: string, formData: FormData) {
 
   const now = new Date();
 
-  // El esperado se calcula por cuenta (depende de Income/Expense de ESE
-  // medio de pago); el real viene del formulario, un input por cuenta.
+  // El esperado se calcula por cuenta (depende de Income/Expense ya
+  // vinculados a ESA cuenta de esta sesión); el real viene del formulario,
+  // un input por cuenta.
   const updates = await Promise.all(
     cashSession.accounts.map(async (account) => {
-      const expectedAmount = await computeCashBalance(
+      const { expected: expectedAmount } = await computeCashBalance(
         account.paymentMethod,
         Number(account.openingAmount),
-        cashSession.id,
-        cashSession.openedAt,
-        now
+        cashSession.id
       );
       const actualAmount = z.coerce
         .number()

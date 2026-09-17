@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { requirePagePermission } from "@/lib/auth";
@@ -45,18 +46,11 @@ export default async function CajaPage({
     }),
   ]);
 
-  const now = new Date();
   const openAccountsWithExpected = openSession
     ? await Promise.all(
         openSession.accounts.map(async (account) => ({
           ...account,
-          expected: await computeCashBalance(
-            account.paymentMethod,
-            Number(account.openingAmount),
-            openSession.id,
-            openSession.openedAt,
-            now
-          ),
+          ...(await computeCashBalance(account.paymentMethod, Number(account.openingAmount), openSession.id)),
         }))
       )
     : [];
@@ -66,7 +60,13 @@ export default async function CajaPage({
       <h1 className="font-display text-2xl">Caja</h1>
       <p className="mt-2 text-sm text-brand-muted">
         Una sola caja, con una sola fecha de apertura. Efectivo es obligatorio; sumá Yape, Plin,
-        tarjeta o transferencia si también querés conciliarlas esta vez.
+        tarjeta o transferencia si también querés conciliarlas esta vez. Los ingresos y egresos
+        que se muestran son solo los que ocurrieron mientras esta caja está abierta — para ver el
+        total de un día completo (incluyendo lo anterior a la apertura), usá{" "}
+        <Link href="/admin/balance" className="underline">
+          Balance
+        </Link>
+        .
       </p>
 
       {error && (
@@ -88,7 +88,7 @@ export default async function CajaPage({
                     Saldo apertura: {formatPrice(account.openingAmount.toString())}
                   </p>
                   <p className="text-sm text-brand-muted">
-                    Movimiento (ingresos − egresos): {formatPrice(account.expected - Number(account.openingAmount))}
+                    Ingresos: {formatPrice(account.ingresos)} · Egresos: {formatPrice(account.egresos)}
                   </p>
                   <p className="text-sm font-medium">Saldo esperado: {formatPrice(account.expected)}</p>
                   {canManage && (
