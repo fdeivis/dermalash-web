@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Instagram } from "lucide-react";
 import { branding, whatsappLink } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +27,18 @@ export default function ContactoPage() {
         <p className="mt-6 text-sm text-brand-muted">
           También podés escribirnos a {branding.contact.email}
         </p>
+      )}
+
+      {branding.social.instagram && (
+        <a
+          href={`https://instagram.com/${branding.social.instagram}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-6 flex items-center justify-center gap-1.5 text-sm text-brand-muted hover:text-brand-accent"
+        >
+          <Instagram className="h-4 w-4" />
+          Seguinos en Instagram @{branding.social.instagram}
+        </a>
       )}
     </div>
   );

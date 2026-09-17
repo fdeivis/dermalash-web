@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Instagram } from "lucide-react";
 import { branding } from "@/lib/branding";
 
 export function SiteFooter() {
@@ -24,13 +25,24 @@ export function SiteFooter() {
           <p>{branding.contact.address}</p>
           <p>{branding.contact.schedule}</p>
         </div>
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
           <Link href="/contacto" className="text-brand-ink hover:text-brand-accent">
             Contacto
           </Link>
           <Link href="/ubicacion" className="text-brand-ink hover:text-brand-accent">
             Ubicación
           </Link>
+          {branding.social.instagram && (
+            <a
+              href={`https://instagram.com/${branding.social.instagram}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-brand-ink hover:text-brand-accent"
+            >
+              <Instagram className="h-4 w-4" />
+              Instagram
+            </a>
+          )}
           <Link href="/admin" className="text-brand-muted hover:text-brand-accent">
             Administración
           </Link>

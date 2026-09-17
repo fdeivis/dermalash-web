@@ -14,12 +14,12 @@ export const branding = {
   logoWithBgUrl: "/brand/logo-confondo.png" as string | null,
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "51999999999",
   contact: {
-    address: "Por definir",
+    address: "Jirón Carlos Monge 449, Los Olivos, Lima, Perú",
     schedule: "Por definir",
     email: null as string | null,
   },
   social: {
-    instagram: null as string | null,
+    instagram: "dermalashpe" as string | null,
     facebook: null as string | null,
   },
 };

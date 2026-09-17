@@ -17,9 +17,14 @@ export default function UbicacionPage() {
           <strong>Horario:</strong> {branding.contact.schedule}
         </p>
       </div>
-      <div className="mt-8 flex aspect-video items-center justify-center rounded-brand border border-dashed border-brand-border text-sm text-brand-muted">
-        [Mapa pendiente: se agrega el embed cuando esté definida la dirección
-        oficial]
+      <div className="mt-8 aspect-video overflow-hidden rounded-brand border border-brand-border">
+        <iframe
+          title="Ubicación de Dermalash en el mapa"
+          src={`https://www.google.com/maps?q=${encodeURIComponent(branding.contact.address)}&output=embed`}
+          className="h-full w-full border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
       </div>
     </div>
   );
