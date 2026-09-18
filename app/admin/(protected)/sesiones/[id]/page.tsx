@@ -38,6 +38,10 @@ export default async function VerFacturaPage({ params }: { params: Promise<{ id:
 
   const subtotal = session.services.reduce((sum, line) => sum + Number(line.priceApplied), 0);
   const discountAmount = subtotal - Number(session.totalAmount);
+  // El descuento se aplica a nivel de factura, no por servicio: para mostrar
+  // un "cobrado" por línea se reparte proporcionalmente al peso de cada
+  // servicio en el subtotal (sin descuento, cobrado = precio lista).
+  const chargeRatio = subtotal > 0 ? Number(session.totalAmount) / subtotal : 1;
 
   return (
     <div className="max-w-2xl">
@@ -106,7 +110,8 @@ export default async function VerFacturaPage({ params }: { params: Promise<{ id:
             <tr>
               <th className="py-2">Servicio</th>
               <th className="py-2">Promoción</th>
-              <th className="py-2 text-right">Precio aplicado</th>
+              <th className="py-2 text-right">Precio lista</th>
+              <th className="py-2 text-right">Precio cobrado</th>
             </tr>
           </thead>
           <tbody>
@@ -115,6 +120,9 @@ export default async function VerFacturaPage({ params }: { params: Promise<{ id:
                 <td className="py-2">{line.service.name}</td>
                 <td className="py-2">{line.promotion?.name ?? "—"}</td>
                 <td className="py-2 text-right">{formatPrice(line.priceApplied.toString())}</td>
+                <td className="py-2 text-right">
+                  {formatPrice((Number(line.priceApplied) * chargeRatio).toString())}
+                </td>
               </tr>
             ))}
           </tbody>

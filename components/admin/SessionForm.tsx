@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { formatPrice } from "@/lib/utils";
+import { peruParts } from "@/lib/time";
 
 type PersonOption = { id: string; name: string };
 type ServiceOption = { id: string; name: string; price: number };
@@ -34,34 +35,33 @@ const PAYMENT_METHODS = [
   { value: "OTRO", label: "Otro" },
 ];
 
-function nowInputValue() {
-  const now = new Date();
+// A diferencia de un <input type="datetime-local"> genérico, acá el valor
+// SIEMPRE se interpreta como hora de Perú al enviarlo (parseDateTimeLocal,
+// del lado del servidor) — así que el valor por defecto tiene que calcularse
+// en hora de Perú también, no en la hora local del dispositivo. Si no,
+// alguien con la notebook o el celular en otro huso ve "ahora" a una hora
+// que después el sistema guarda corrida (ver nota de lib/time.ts).
+function toPeruInputValue(date: Date) {
+  const { year, month, day, hour, minute } = peruParts(date);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(
-    now.getHours()
-  )}:${pad(now.getMinutes())}`;
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+}
+
+function nowInputValue() {
+  return toPeruInputValue(new Date());
 }
 
 function toDateTimeLocalValue(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
+  return toPeruInputValue(new Date(iso));
 }
 
 function isSameLocalDay(iso: string, dateTimeLocalValue: string) {
-  const a = new Date(iso);
+  const { year, month, day } = peruParts(new Date(iso));
   const [datePart] = dateTimeLocalValue.split("T");
   const [y, m, d] = datePart.split("-").map(Number);
-  return a.getFullYear() === y && a.getMonth() + 1 === m && a.getDate() === d;
+  return year === y && month === m && day === d;
 }
 
-// Acá sí se fija timeZone explícito (a diferencia de nowInputValue/
-// toDateTimeLocalValue, que a propósito usan la hora local del navegador
-// porque así funciona un <input type="datetime-local">): esto es solo
-// texto para mostrar, no debe depender de en qué huso esté configurado el
-// sistema operativo de quien lo mira.
 function formatAppointmentOption(a: AppointmentOption) {
   const d = new Date(a.startAt);
   const isToday =
