@@ -15,7 +15,7 @@ export const branding = {
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "51999999999",
   contact: {
     address: "Jirón Carlos Monge 449, Los Olivos, Lima, Perú",
-    schedule: "Por definir",
+    schedule: "Todos los días, 10:00 am - 8:00 pm",
     email: null as string | null,
   },
   social: {

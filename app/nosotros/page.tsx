@@ -14,9 +14,9 @@ export default function NosotrosPage() {
         tratamientos de calidad en un ambiente elegante y cercano.
       </p>
       <p className="mt-4 text-brand-muted">
-        [Contenido pendiente: historia del centro, propuesta de valor y equipo —
-        se completa desde el panel de administración cuando esté disponible en
-        una etapa posterior.]
+        Combinamos técnicas modernas con atención personalizada, cuidando cada detalle para
+        que tu experiencia sea cómoda, segura y con resultados que se noten. Te acompañamos
+        en cada sesión con un equipo dedicado a tu piel y a tu confianza.
       </p>
     </div>
   );
