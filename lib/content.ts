@@ -41,6 +41,19 @@ export function getActivePromotions() {
   });
 }
 
+// Lo consulta el layout raíz en cada request (público y admin) para decidir
+// si el menú muestra "Promociones". Sin caché a propósito: es un count()
+// liviano e indexado, y cachearlo (probado con unstable_cache + tags) no
+// invalidaba de forma confiable al publicar/despublicar una promoción —
+// mejor una consulta más que un menú desactualizado.
+export async function hasActivePromotions() {
+  const now = new Date();
+  const count = await prisma.promotion.count({
+    where: { status: "PUBLISHED", startDate: { lte: now }, endDate: { gte: now } },
+  });
+  return count > 0;
+}
+
 export function getPromotionBySlug(slug: string) {
   return prisma.promotion.findFirst({
     where: { slug, status: "PUBLISHED" },

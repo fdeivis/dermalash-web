@@ -11,7 +11,11 @@ const NAV_LINKS = [
   { href: "/ubicacion", label: "Ubicación" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ hasActivePromotions }: { hasActivePromotions: boolean }) {
+  const links = hasActivePromotions
+    ? NAV_LINKS
+    : NAV_LINKS.filter((link) => link.href !== "/promociones");
+
   return (
     <header className="sticky top-0 z-40 border-b border-brand-border bg-brand-bg/90 shadow-sm backdrop-blur">
       <div className="mx-auto flex h-24 max-w-6xl items-center justify-between px-4">
@@ -30,7 +34,7 @@ export function SiteHeader() {
           )}
         </Link>
         <nav className="hidden gap-6 text-sm md:flex">
-          {NAV_LINKS.map((link) => (
+          {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}

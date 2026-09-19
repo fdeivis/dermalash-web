@@ -7,7 +7,13 @@ import { WhatsAppFloatingButton } from "@/components/layout/WhatsAppFloatingButt
 
 // El panel /admin tiene su propio layout (AdminNav) y no debe mostrar
 // el header/footer/WhatsApp del sitio público.
-export function SiteChrome({ children }: { children: React.ReactNode }) {
+export function SiteChrome({
+  children,
+  hasActivePromotions,
+}: {
+  children: React.ReactNode;
+  hasActivePromotions: boolean;
+}) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
 
@@ -15,7 +21,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader hasActivePromotions={hasActivePromotions} />
       <main className="min-h-[60vh]">{children}</main>
       <SiteFooter />
       <WhatsAppFloatingButton />
