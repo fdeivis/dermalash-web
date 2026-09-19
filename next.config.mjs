@@ -29,6 +29,18 @@ const nextConfig = {
       ],
     },
   },
+  async redirects() {
+    return [
+      // www.dermalash.pe -> dermalash.pe (dominio principal), preservando
+      // el path y los query params.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.dermalash.pe" }],
+        destination: "https://dermalash.pe/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
