@@ -184,11 +184,15 @@ Reglas estrictas:
   vigentes" suena raro) — simplemente no digas nada sobre promociones, salvo que
   el cliente pregunte explícitamente si hay descuentos u ofertas.
 - Antes de ofrecer un horario, llama a "buscar_disponibilidad" — nunca supongas que
-  un horario está libre. Esta tool no recibe ninguna fecha como parámetro: siempre
-  devuelve los próximos días con lugar libre, cada uno con su propia "fecha" y
+  un horario está libre. Por defecto (sin pasarle "fechaDesde") te devuelve los
+  próximos días con lugar libre a partir de HOY, cada uno con su propia "fecha" y
   "diaSemana". Tú eliges de esa lista cuál corresponde a lo que pidió el cliente
-  (comparando contra el calendario de referencia del contexto) — nunca le pases
-  una fecha calculada por ti a esta tool, porque no la acepta.
+  (comparando contra el calendario de referencia del contexto). Si el cliente pide
+  algo más lejano que el último día de esa lista, o dice explícitamente "más
+  adelante" / "después del [fecha]" / "el mes que viene", NO le digas que no hay
+  disponibilidad: volvé a llamar "buscar_disponibilidad" con "fechaDesde" en el día
+  siguiente al último que te trajo, y seguí así hasta encontrar algo o hasta un
+  límite razonable (unas pocas veces) antes de derivar a un humano.
 - Antes de confirmar un horario con "crear_turno" o "reprogramar_turno", fíjate que
   la "fecha" que vas a mandarle sea exactamente la del bloque de
   "buscar_disponibilidad" que le mostraste al cliente — cópiala tal cual, no la
@@ -346,12 +350,19 @@ function buildTools(opts: {
   const buscarDisponibilidad = betaZodTool({
     name: "buscar_disponibilidad",
     description:
-      'Devuelve, para un conjunto de servicios, los próximos días con franjas horarias realmente libres (en base a la agenda real: horarios de trabajo, ausencias y turnos ya tomados de TODO el equipo — un horario aparece como libre si al menos una esteticista puede atenderlo, sin decir cuál). Cada día trae "rangos": bloques continuos ya agrupados (ej. {desde:"09:00", hasta:"12:00"}) — dentro de un rango, CUALQUIER horario que pida el cliente en pasos de 30 minutos está libre, no hace falta desglosarlo. No recibe ninguna fecha como parámetro — siempre trae los próximos 10 días con lugar, cada uno con su "fecha" (YYYY-MM-DD) y "diaSemana". Busca tú, en esa lista, el día que corresponda a lo que pidió el cliente (comparándolo con el calendario de referencia del contexto). Llamar siempre antes de ofrecer un horario.',
+      'Devuelve, para un conjunto de servicios, los próximos 10 días CON LUGAR a partir de "fechaDesde" (hoy si no la pasas) — franjas horarias realmente libres, en base a la agenda real: horarios de trabajo, ausencias y turnos ya tomados de TODO el equipo (un horario aparece como libre si al menos una esteticista puede atenderlo, sin decir cuál). Cada día trae "rangos": bloques continuos ya agrupados (ej. {desde:"09:00", hasta:"12:00"}) — dentro de un rango, CUALQUIER horario que pida el cliente en pasos de 30 minutos está libre, no hace falta desglosarlo. Cada día trae su "fecha" (YYYY-MM-DD) y "diaSemana"; busca tú, en esa lista, el día que corresponda a lo que pidió el cliente (comparándolo con el calendario de referencia del contexto). Si el cliente pide una fecha más lejana que la última que te devolvió esta tool, o pide explícitamente "más adelante"/"después del [fecha]", volvé a llamarla con "fechaDesde" un día después de esa última fecha — no le digas que no hay disponibilidad solo porque no entró en la primera tanda de 10 días. Llamar siempre antes de ofrecer un horario.',
     inputSchema: z.object({
       serviceIds: z.array(z.string()).describe("ids de servicio devueltos por obtener_catalogo"),
+      fechaDesde: z
+        .string()
+        .optional()
+        .describe('"YYYY-MM-DD": desde qué día buscar. Omitir para buscar desde hoy.'),
     }),
     run: async (input) => {
-      const result = await getAvailableSlotsUnion({ serviceIds: input.serviceIds });
+      const result = await getAvailableSlotsUnion({
+        serviceIds: input.serviceIds,
+        fromDateKey: input.fechaDesde,
+      });
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({
         disponibilidad: result.days.map((d) => ({
