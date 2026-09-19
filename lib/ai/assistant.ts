@@ -65,6 +65,25 @@ function peruTodayContext(): string {
   ].join("\n");
 }
 
+// Este número de WhatsApp puede estar vinculado a un cliente por un mensaje
+// anterior (ver resolveClientByWhatsapp), pero un celular puede cambiar de
+// dueño o ser compartido en familia — así que esto es solo un DATO SUGERIDO,
+// nunca una identidad ya confirmada (ver el comentario de ClientState). Se
+// arma como bloque de sistema aparte (no cacheable, cambia por conversación)
+// para que el modelo pueda proponerle los datos a la persona en vez de
+// pedírselos de cero, sin saltarse la verificación real por documento.
+function linkedClientContext(client: { firstName: string; lastName: string; documentId: string | null } | null): string {
+  if (!client) {
+    return `Este número de WhatsApp no tiene ningún cliente vinculado todavía. Para reservar, reprogramar, cancelar o consultar turnos, pide nombre, apellido y documento como indica tu instrucción general.`;
+  }
+  return [
+    `Este número de WhatsApp está vinculado a: ${client.firstName} ${client.lastName}` +
+      (client.documentId ? ` (documento ${client.documentId})` : " (sin documento registrado)") +
+      `. Es solo un dato sugerido, NO una identidad confirmada: puede que quien escribe hoy sea otra persona (celular compartido o reasignado).`,
+    `Si por el tono de la conversación es razonable asumir que es la misma persona, puedes confirmarlo con una pregunta corta (ej. "¿hablo con ${client.firstName}?") y, si dice que sí, llamar a "identificar_o_crear_cliente" con esos datos directamente (sin tener que volver a pedirle nombre/apellido si ya tienes el documento). Si dice que es otra persona, o el documento no lo tienes, pide los datos de esa persona y llama a la tool con los suyos — nunca asumas la identidad sin que la tool la confirme.`,
+  ].join("\n");
+}
+
 const SYSTEM_PROMPT = `Eres el asistente de WhatsApp de Dermalash, un centro estético en Lima, Perú.
 Hablas español de Perú (tuteo: "tú", "tienes", "puedes" — NUNCA voseo argentino
 como "vos", "tenés", "podés"), con un tono cálido, cercano y entusiasta — como
@@ -183,17 +202,34 @@ Reglas estrictas:
 - Si una tool de escritura falla, no reintentes con los mismos datos: explica el
   motivo (en términos simples, nunca técnicos) y ofrece una alternativa.
 - Para agendar, reprogramar, cancelar o consultar turnos, primero necesitas saber
-  quién es el cliente: si no lo identificaste todavía, pide nombre, apellido Y
-  número de documento de identidad (DNI o carné de extranjería) EN LA MISMA
-  pregunta, y llama a "identificar_o_crear_cliente" con los tres datos — el
-  documento es lo único que evita crear un cliente duplicado cuando hay más de
-  una persona con el mismo nombre, así que es obligatorio, no opcional. Nunca
-  asumas que ya lo tienes identificado solo porque te dijo el nombre, hasta que la
-  tool confirme.
+  quién es el cliente EN ESTE turno de la conversación: llama a
+  "identificar_o_crear_cliente" con nombre, apellido y documento antes de usar
+  "consultar_turnos_cliente", "crear_turno", "reprogramar_turno" o
+  "cancelar_turno" — sin excepción, incluso si ya reservó antes en esta misma
+  conversación o si el sistema te sugiere de quién es el número (ver más abajo).
+  El documento es lo único que evita crear un cliente duplicado cuando hay más
+  de una persona con el mismo nombre, así que es obligatorio, no opcional.
+  Nunca asumas que ya lo tienes identificado solo porque te dijo el nombre, ni
+  porque el número de WhatsApp ya estaba vinculado a alguien, hasta que la
+  tool lo confirme.
+- El número de WhatsApp de esta conversación puede venir con un cliente
+  sugerido (te lo indica un bloque de contexto aparte). Es SOLO una sugerencia
+  para no tener que volver a pedir los datos de cero — nunca uses esos datos
+  como si ya fueran una identidad confirmada sin llamar igual a
+  "identificar_o_crear_cliente". Un celular puede cambiar de dueño o ser
+  compartido en familia: si algo en la conversación no calza con el nombre
+  sugerido, pide los datos de la persona real que está escribiendo.
 - Si "identificar_o_crear_cliente" devuelve "varios-clientes-mismo-nombre", hay más
   de una persona con ese nombre y no puedes adivinar cuál es sin arriesgarte a
   mezclar el historial de dos clientes distintos: deriva directo a un humano con
   "derivar_a_humano", explicando la situación — no reintentes con los mismos datos.
+- Si "consultar_turnos_cliente", "crear_turno", "reprogramar_turno" o
+  "cancelar_turno" devuelven "cliente-no-identificado", llamá primero a
+  "identificar_o_crear_cliente" y recién después reintentá. Si
+  "reprogramar_turno"/"cancelar_turno" devuelven "turno-no-encontrado", ese
+  turno no es de la persona identificada en este turno — no insistas con el
+  mismo appointmentId; volvé a llamar "consultar_turnos_cliente" para
+  confirmar cuáles son realmente sus turnos.
 - Las fechas que recibes de las tools están en formato "YYYY-MM-DD" y las horas en
   "HH:MM" (24 horas); al hablarle al cliente, conviértelas a lenguaje natural en
   hora de Perú, SIEMPRE con el nombre del mes (ej. "jueves 18 de septiembre a las
@@ -214,7 +250,14 @@ Reglas estrictas:
   "derivar_a_humano" explicando el problema puntual — no repitas la misma
   pregunta una tercera vez.`;
 
-type ClientState = { id: string | null };
+// `confirmed` es la clave del resguardo contra el bug de "número de WhatsApp
+// compartido": `id` puede venir de una vinculación automática por número de
+// teléfono (ver resolveClientByWhatsapp) sin que la persona que escribe HOY
+// sea necesariamente esa misma persona (celular familiar, número reciclado,
+// etc.). Ninguna tool que reserve, reprograme, cancele o muestre datos de un
+// cliente puede confiar en `id` hasta que "identificar_o_crear_cliente" lo
+// confirme en ESTE turno — recién ahí se pone `confirmed = true`.
+type ClientState = { id: string | null; confirmed: boolean };
 
 async function resolveClientByWhatsapp(externalId: string): Promise<string | null> {
   const client = await prisma.client.findFirst({ where: { whatsapp: externalId } });
@@ -326,7 +369,7 @@ function buildTools(opts: {
       "Lista los turnos futuros (reservados o confirmados) del cliente ya identificado en esta conversación, con sus servicioIds — llamar antes de reprogramar_turno o cancelar_turno para tener el appointmentId y los servicioIds correctos.",
     inputSchema: z.object({}),
     run: async () => {
-      if (!clientState.id) {
+      if (!clientState.id || !clientState.confirmed) {
         return JSON.stringify({ error: "cliente-no-identificado" });
       }
       const appointments = await prisma.appointment.findMany({
@@ -375,6 +418,7 @@ function buildTools(opts: {
           await prisma.client.update({ where: { id: byDocument.id }, data: { whatsapp: externalId } });
         }
         clientState.id = byDocument.id;
+        clientState.confirmed = true;
         return JSON.stringify({ ok: true, clientId: byDocument.id, encontrado: true });
       }
 
@@ -404,6 +448,7 @@ function buildTools(opts: {
           });
         }
         clientState.id = compatible[0].id;
+        clientState.confirmed = true;
         return JSON.stringify({ ok: true, clientId: compatible[0].id, encontrado: true });
       }
 
@@ -429,6 +474,7 @@ function buildTools(opts: {
         },
       });
       clientState.id = client.id;
+      clientState.confirmed = true;
       return JSON.stringify({ ok: true, clientId: client.id, encontrado: false });
     },
   });
@@ -444,7 +490,7 @@ function buildTools(opts: {
       notas: z.string().optional(),
     }),
     run: async (input) => {
-      if (!clientState.id) return JSON.stringify({ error: "cliente-no-identificado" });
+      if (!clientState.id || !clientState.confirmed) return JSON.stringify({ error: "cliente-no-identificado" });
       // Resguardo del lado del servidor, no solo del prompt: la IA nunca
       // puede crear un turno en el pasado (a diferencia del panel admin,
       // que sí puede necesitarlo para cargar algo a mano).
@@ -490,7 +536,7 @@ function buildTools(opts: {
   const reprogramarTurno = betaZodTool({
     name: "reprogramar_turno",
     description:
-      "Reprograma un turno existente del cliente a otra fecha/hora, en un horario que ya salió de buscar_disponibilidad. Asigna la esteticista internamente, igual que crear_turno.",
+      "Reprograma a otra fecha/hora un turno del cliente ya identificado (obtené el appointmentId con consultar_turnos_cliente), en un horario que ya salió de buscar_disponibilidad. Asigna la esteticista internamente, igual que crear_turno.",
     inputSchema: z.object({
       appointmentId: z.string(),
       serviceIds: z.array(z.string()).min(1).describe("los mismos servicios del turno original"),
@@ -498,6 +544,18 @@ function buildTools(opts: {
       horaInicio: z.string().describe('"HH:MM", 24 horas'),
     }),
     run: async (input) => {
+      if (!clientState.id || !clientState.confirmed) return JSON.stringify({ error: "cliente-no-identificado" });
+      // Resguardo del lado del servidor: nunca confiar en que el
+      // appointmentId que pasa el modelo es del cliente ya confirmado (pudo
+      // salir de un mensaje viejo en el historial, o de una alucinación).
+      const owned = await prisma.appointment.findUnique({
+        where: { id: input.appointmentId },
+        select: { clientId: true },
+      });
+      if (!owned || owned.clientId !== clientState.id) {
+        return JSON.stringify({ error: "turno-no-encontrado" });
+      }
+
       const assigned = await findAvailableProfessional({
         serviceIds: input.serviceIds,
         date: input.fecha,
@@ -524,12 +582,22 @@ function buildTools(opts: {
 
   const cancelarTurno = betaZodTool({
     name: "cancelar_turno",
-    description: "Cancela un turno del cliente. No se puede cancelar un turno que ya tiene una factura registrada.",
+    description:
+      "Cancela un turno del cliente ya identificado (obtené el appointmentId con consultar_turnos_cliente). No se puede cancelar un turno que ya tiene una factura registrada.",
     inputSchema: z.object({
       appointmentId: z.string(),
       motivo: z.string().optional(),
     }),
     run: async (input) => {
+      if (!clientState.id || !clientState.confirmed) return JSON.stringify({ error: "cliente-no-identificado" });
+      const owned = await prisma.appointment.findUnique({
+        where: { id: input.appointmentId },
+        select: { clientId: true },
+      });
+      if (!owned || owned.clientId !== clientState.id) {
+        return JSON.stringify({ error: "turno-no-encontrado" });
+      }
+
       const result = await cancelAppointmentCore(input.appointmentId, { reason: input.motivo });
       if (!result.ok) return JSON.stringify({ error: result.error });
       const { appointment } = result;
@@ -615,7 +683,18 @@ async function runAssistantTurnLocked(
       await prisma.conversation.update({ where: { id: conversationId }, data: { clientId } });
     }
   }
-  const clientState: ClientState = { id: clientId };
+  // `confirmed` siempre arranca en false, incluso si `clientId` ya venía de
+  // una conversación previa: cada turno tiene que confirmarlo de nuevo antes
+  // de reservar/reprogramar/cancelar o mostrar datos de turnos (ver
+  // ClientState) — es lo que evita reservar o exponer los turnos de otra
+  // persona cuando el número de WhatsApp cambió de dueño o es compartido.
+  const clientState: ClientState = { id: clientId, confirmed: false };
+  const linkedClient = clientId
+    ? await prisma.client.findUnique({
+        where: { id: clientId },
+        select: { firstName: true, lastName: true, documentId: true },
+      })
+    : null;
 
   const cutoff = new Date(Date.now() - HISTORY_WINDOW_HOURS * 3600_000);
   // orderBy desc + take trae los últimos N mensajes (los más recientes);
@@ -650,6 +729,7 @@ async function runAssistantTurnLocked(
       system: [
         { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
         { type: "text", text: peruTodayContext() },
+        { type: "text", text: linkedClientContext(linkedClient) },
       ],
       output_config: { effort: "medium" },
       tools,
