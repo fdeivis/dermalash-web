@@ -59,8 +59,8 @@ export default async function AdminServiciosPage({
 
       {error === "tiene-sesiones" && (
         <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          No se puede eliminar: este servicio ya tiene facturas registradas. Despublicalo en su
-          lugar si no querés seguir ofreciéndolo.
+          No se puede eliminar: este servicio ya tiene facturas registradas. Despublícalo en su
+          lugar si no quieres seguir ofreciéndolo.
         </p>
       )}
 

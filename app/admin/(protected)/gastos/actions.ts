@@ -21,7 +21,7 @@ const expenseSchema = z.object({
     "ADELANTO_GANANCIAS",
     "OTROS",
   ]),
-  date: z.string().min(1, "Elegí una fecha"),
+  date: z.string().min(1, "Elige una fecha"),
   amount: z.coerce.number().positive("El monto debe ser mayor a 0"),
   paymentMethod: z.enum(["EFECTIVO", "YAPE", "PLIN", "TARJETA", "TRANSFERENCIA", "OTRO"]),
   supplierId: z.string().optional(),

@@ -37,7 +37,7 @@ export function SupplierForm({
 
       <div className="space-y-3 rounded-brand border border-brand-border p-4">
         <p className="text-sm font-medium">Datos de contacto</p>
-        <p className="text-xs text-brand-muted">Ingresá al menos uno.</p>
+        <p className="text-xs text-brand-muted">Ingresa al menos uno.</p>
         <div>
           <label className="block text-xs font-medium">Teléfono</label>
           <input

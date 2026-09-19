@@ -29,7 +29,7 @@ export function SimulatedChatForm({ action }: { action: (formData: FormData) => 
         type="text"
         name="text"
         required
-        placeholder="Escribí como si fueras el cliente..."
+        placeholder="Escribe como si fueras el cliente..."
         className="flex-1 rounded-brand border border-brand-border px-3 py-2 text-sm"
       />
       <SubmitButton />

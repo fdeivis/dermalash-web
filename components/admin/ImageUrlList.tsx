@@ -104,8 +104,8 @@ export function ImageUrlList({
       {error && <p className="text-xs text-red-600">{error}</p>}
       {warning && <p className="text-xs text-amber-600">{warning}</p>}
       <p className="text-xs text-brand-muted">
-        Subí una imagen desde tu computadora o pegá la URL de una imagen ya publicada. Para que
-        no se vea pixelada, subí fotos de al menos {MIN_RECOMMENDED_WIDTH}px de ancho.
+        Sube una imagen desde tu computadora o pega la URL de una imagen ya publicada. Para que
+        no se vea pixelada, sube fotos de al menos {MIN_RECOMMENDED_WIDTH}px de ancho.
       </p>
     </div>
   );

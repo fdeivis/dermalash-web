@@ -88,7 +88,7 @@ export function SingleImageField({
       {error && <p className="text-xs text-red-600">{error}</p>}
       {warning && <p className="text-xs text-amber-600">{warning}</p>}
       <p className="text-xs text-brand-muted">
-        Para que no se vea pixelada en el carrusel, subí una foto horizontal de al menos{" "}
+        Para que no se vea pixelada en el carrusel, sube una foto horizontal de al menos{" "}
         {MIN_RECOMMENDED_WIDTH}px de ancho.
       </p>
     </div>

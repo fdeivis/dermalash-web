@@ -43,7 +43,7 @@ function LoginForm() {
       // Sin este catch, un error de red pasajero (frecuente en el primer
       // request luego de que el servidor estuvo inactivo) dejaba el botón
       // trabado en "Ingresando..." para siempre, sin ningún mensaje.
-      setError("No se pudo conectar. Probá de nuevo en unos segundos.");
+      setError("No se pudo conectar. Prueba de nuevo en unos segundos.");
       setLoading(false);
     }
   }
@@ -63,7 +63,7 @@ function LoginForm() {
         <h1 className="font-display text-2xl">Administración {branding.siteName}</h1>
       )}
       <p className="mt-4 text-center text-sm text-brand-muted">
-        Ingresá con tu cuenta de administrador.
+        Ingresa con tu cuenta de administrador.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">

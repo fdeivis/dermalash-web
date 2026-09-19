@@ -53,7 +53,7 @@ export default async function ConversacionPage({ params }: { params: Promise<{ i
           </div>
         ))}
         {conversation.messages.length === 0 && conversation.channel === "SIMULATED" && (
-          <p className="text-center text-sm text-brand-muted">Escribí el primer mensaje como si fueras el cliente.</p>
+          <p className="text-center text-sm text-brand-muted">Escribe el primer mensaje como si fueras el cliente.</p>
         )}
         {conversation.messages.length === 0 && conversation.channel === "WHATSAPP" && (
           <p className="text-center text-sm text-brand-muted">Todavía no hay mensajes en esta conversación.</p>

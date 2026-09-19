@@ -11,11 +11,11 @@ import { peruParts, formatDateTime12 } from "@/lib/scheduling";
 import { createAppointmentCore, rescheduleAppointmentCore, cancelAppointmentCore } from "@/lib/appointments/service";
 
 const appointmentSchema = z.object({
-  clientId: z.string().min(1, "Seleccioná un cliente"),
-  professionalId: z.string().min(1, "Seleccioná un profesional"),
-  serviceIds: z.array(z.string()).min(1, "Seleccioná al menos un servicio"),
-  date: z.string().min(1, "Elegí una fecha"),
-  startTime: z.string().min(1, "Elegí un horario"),
+  clientId: z.string().min(1, "Selecciona un cliente"),
+  professionalId: z.string().min(1, "Selecciona un profesional"),
+  serviceIds: z.array(z.string()).min(1, "Selecciona al menos un servicio"),
+  date: z.string().min(1, "Elige una fecha"),
+  startTime: z.string().min(1, "Elige un horario"),
   notes: z.string().max(2000).optional(),
   force: z.boolean().optional(),
 });

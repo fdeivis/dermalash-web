@@ -72,7 +72,7 @@ export async function createTimeOff(formData: FormData) {
   });
   if (data.endDate < data.startDate) throw new Error("La fecha de fin debe ser igual o posterior a la de inicio");
   if (Boolean(data.startTime) !== Boolean(data.endTime)) {
-    throw new Error("Completá tanto la hora de inicio como la de fin, o dejá ambas vacías");
+    throw new Error("Completa tanto la hora de inicio como la de fin, o deja ambas vacías");
   }
   const startMinute = data.startTime ? timeToMinutes(data.startTime) : null;
   const endMinute = data.endTime ? timeToMinutes(data.endTime) : null;

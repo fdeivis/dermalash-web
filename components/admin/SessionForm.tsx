@@ -244,7 +244,7 @@ export function SessionForm({
     const hasService = new FormData(e.currentTarget).getAll("serviceIds").length > 0;
     if (!hasService) {
       e.preventDefault();
-      alert("Seleccioná al menos un servicio.");
+      alert("Selecciona al menos un servicio.");
     }
   }
 
@@ -324,7 +324,7 @@ export function SessionForm({
             })}
           </div>
           <p className="mt-2 text-xs text-brand-muted">
-            Es solo informativo — el monto sugerido abajo usa el precio actual; ajustalo a mano si
+            Es solo informativo — el monto sugerido abajo usa el precio actual; ajústalo a mano si
             corresponde honrar lo cotizado.
           </p>
         </div>
@@ -405,7 +405,7 @@ export function SessionForm({
         <div>
           <label className="block text-sm font-medium">Promociones vigentes</label>
           <p className="mt-1 text-xs text-brand-muted">
-            Tildá una promoción para cobrarla como combo en vez de sus servicios por separado.
+            Tilda una promoción para cobrarla como combo en vez de sus servicios por separado.
           </p>
           <div className="mt-1 space-y-1 rounded-brand border border-brand-border p-3">
             {promotions.map((promotion) => (
@@ -537,7 +537,7 @@ export function SessionForm({
 
       <ConfirmSubmitButton
         type="submit"
-        confirmMessage="¿Confirmar el registro de esta factura con estos servicios y este monto? Revisá que estén todos los servicios realizados antes de continuar."
+        confirmMessage="¿Confirmar el registro de esta factura con estos servicios y este monto? Revisa que estén todos los servicios realizados antes de continuar."
       >
         Registrar factura
       </ConfirmSubmitButton>

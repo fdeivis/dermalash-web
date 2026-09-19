@@ -143,7 +143,7 @@ export default async function AgendaPage({
 
       {dayAgenda.length === 0 && (
         <p className="mt-6 text-sm text-brand-muted">
-          No hay profesionales con agenda habilitada todavía. Cargá horarios desde la sección
+          No hay profesionales con agenda habilitada todavía. Carga horarios desde la sección
           Horarios.
         </p>
       )}

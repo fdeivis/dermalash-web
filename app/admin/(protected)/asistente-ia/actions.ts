@@ -25,7 +25,7 @@ export async function createSimulatedConversation(formData: FormData) {
 }
 
 const messageSchema = z.object({
-  text: z.string().min(1, "Escribí un mensaje"),
+  text: z.string().min(1, "Escribe un mensaje"),
 });
 
 export async function sendSimulatedMessage(conversationId: string, formData: FormData) {

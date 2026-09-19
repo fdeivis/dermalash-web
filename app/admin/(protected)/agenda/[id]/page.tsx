@@ -20,9 +20,9 @@ export const dynamic = "force-dynamic";
 
 const ERROR_LABEL: Record<string, string> = {
   "fuera-de-horario":
-    "Ese horario está fuera del horario habitual del profesional. Marcá \"Forzar\" si igual querés reprogramarlo ahí.",
+    "Ese horario está fuera del horario habitual del profesional. Marca \"Forzar\" si igual quieres reprogramarlo ahí.",
   feriado:
-    "Ese día el profesional tiene una ausencia o es feriado. Marcá \"Forzar\" si igual querés reprogramarlo ahí.",
+    "Ese día el profesional tiene una ausencia o es feriado. Marca \"Forzar\" si igual quieres reprogramarlo ahí.",
 };
 
 function pad(n: number) {

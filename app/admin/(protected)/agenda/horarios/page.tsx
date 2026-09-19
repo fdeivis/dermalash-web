@@ -352,7 +352,7 @@ export default async function HorariosPage({
           </Button>
         </form>
         <p className="mt-2 text-xs text-brand-muted">
-          Dejá las horas vacías para que la ausencia cubra el día completo. Cargalas para un permiso
+          Deja las horas vacías para que la ausencia cubra el día completo. Cárgalas para un permiso
           por horas (ej. media mañana).
         </p>
       </section>

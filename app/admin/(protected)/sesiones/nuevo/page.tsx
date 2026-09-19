@@ -21,7 +21,7 @@ function toDateTimeLocal(date: Date) {
 }
 
 const ERROR_LABEL: Record<string, string> = {
-  "datos-invalidos": "Revisá los datos: falta elegir cliente, profesional, fecha, medio de pago o algún servicio.",
+  "datos-invalidos": "Revisa los datos: falta elegir cliente, profesional, fecha, medio de pago o algún servicio.",
   "descuento-sin-motivo": "Si aplicás un descuento, indicá el motivo.",
 };
 
@@ -124,13 +124,13 @@ export default async function NuevaSesionPage({
         <p className="mt-2 rounded-brand border border-brand-border bg-brand-bg px-4 py-3 text-sm">
           Turno de <strong>{appointment.client.firstName} {appointment.client.lastName}</strong> con{" "}
           {professionalLabel(appointment.professional)} —{" "}
-          {appointment.services.map((l) => l.service.name).join(", ")}. Revisá los datos y{" "}
-          <strong>marcá algún servicio más</strong> si hizo algo además de lo agendado; recién se
+          {appointment.services.map((l) => l.service.name).join(", ")}. Revisa los datos y{" "}
+          <strong>marca algún servicio más</strong> si hizo algo además de lo agendado; recién se
           guarda cuando confirmes "Registrar factura" al final.
         </p>
       ) : (
         <p className="mt-2 rounded-brand border border-brand-border bg-brand-bg px-4 py-3 text-sm">
-          Elegí un cliente. Si tiene algún turno reservado o confirmado, te lo va a proponer para
+          Elige un cliente. Si tiene algún turno reservado o confirmado, te lo va a proponer para
           vincularlo a la factura y precargar sus servicios; si no tiene ninguno, la factura se
           registra igual, sin turno asociado.
         </p>

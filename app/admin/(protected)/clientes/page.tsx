@@ -58,7 +58,7 @@ export default async function AdminClientesPage({
       {error === "tiene-turnos" && (
         <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           No se puede eliminar: este cliente tiene turnos registrados (aunque estén cancelados).
-          Cancelá y borrá el turno desde la Agenda primero si de verdad hace falta eliminar al cliente.
+          Cancela y borra el turno desde la Agenda primero si de verdad hace falta eliminar al cliente.
         </p>
       )}
 
@@ -75,7 +75,7 @@ export default async function AdminClientesPage({
         </Button>
       </form>
       <p className="mt-1 text-xs text-brand-muted">
-        Buscá antes de crear un cliente nuevo para evitar duplicados.
+        Busca antes de crear un cliente nuevo para evitar duplicados.
       </p>
 
       <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">

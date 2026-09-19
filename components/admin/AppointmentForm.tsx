@@ -31,7 +31,7 @@ export function AppointmentForm({
     const hasService = new FormData(e.currentTarget).getAll("serviceIds").length > 0;
     if (!hasService) {
       e.preventDefault();
-      alert("Seleccioná al menos un servicio.");
+      alert("Selecciona al menos un servicio.");
     }
   }
 

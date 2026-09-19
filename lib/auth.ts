@@ -103,7 +103,7 @@ export async function requireAdminSession() {
 export async function requirePermission(key: PermissionKey) {
   const session = await requireAdminSession();
   if (!(await hasPermission(session.user.role, key))) {
-    throw new Error("No tenés permiso para realizar esta acción");
+    throw new Error("No tienes permiso para realizar esta acción");
   }
   return session;
 }

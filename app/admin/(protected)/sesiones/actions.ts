@@ -12,13 +12,13 @@ import { logAction } from "@/lib/audit";
 import { parseDateTimeLocal } from "@/lib/scheduling";
 
 const sessionSchema = z.object({
-  clientId: z.string().min(1, "Seleccioná un cliente"),
-  attendedByUserId: z.string().min(1, "Seleccioná un profesional"),
+  clientId: z.string().min(1, "Selecciona un cliente"),
+  attendedByUserId: z.string().min(1, "Selecciona un profesional"),
   // string, no z.coerce.date(): ese coerce usa `new Date(valorDelInput)`, que
   // interpreta "YYYY-MM-DDTHH:MM" en el huso del servidor (UTC en Vercel) en
   // vez de en hora de Perú. Se convierte a mano más abajo con parseDateTimeLocal.
-  sessionDate: z.string().min(1, "Elegí una fecha y hora"),
-  serviceIds: z.array(z.string()).min(1, "Seleccioná al menos un servicio"),
+  sessionDate: z.string().min(1, "Elige una fecha y hora"),
+  serviceIds: z.array(z.string()).min(1, "Selecciona al menos un servicio"),
   promotionIds: z.array(z.string()),
   totalAmount: z.coerce.number().nonnegative(),
   paymentMethod: z.enum(["EFECTIVO", "YAPE", "PLIN", "TARJETA", "TRANSFERENCIA", "OTRO"]),
@@ -76,7 +76,7 @@ export async function createClientSession(formData: FormData) {
       redirect(`/admin/sesiones/nuevo?${params}`);
     }
     if (!(await hasPermission(session.user.role, "sesiones.aplicar_descuento"))) {
-      throw new Error("No tenés permiso para aplicar descuentos");
+      throw new Error("No tienes permiso para aplicar descuentos");
     }
   }
 

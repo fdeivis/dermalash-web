@@ -19,7 +19,7 @@ const supplierSchema = z
     rating: z.enum(["BUENA", "REGULAR", "MALA"]).optional(),
   })
   .refine((data) => data.phone || data.whatsapp || data.email, {
-    message: "Ingresá al menos un dato de contacto (teléfono, WhatsApp o correo)",
+    message: "Ingresa al menos un dato de contacto (teléfono, WhatsApp o correo)",
     path: ["phone"],
   });
 

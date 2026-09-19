@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic";
 
 const ERROR_LABEL: Record<string, string> = {
   "fuera-de-horario":
-    "Ese horario está fuera del horario habitual del profesional. Marcá \"Forzar\" si igual querés reservarlo.",
+    "Ese horario está fuera del horario habitual del profesional. Marca \"Forzar\" si igual quieres reservarlo.",
   feriado:
-    "Ese día el profesional tiene una ausencia o es feriado. Marcá \"Forzar\" si igual querés reservarlo.",
-  "datos-invalidos": "Revisá los datos: falta elegir cliente, profesional, horario o algún servicio.",
+    "Ese día el profesional tiene una ausencia o es feriado. Marca \"Forzar\" si igual quieres reservarlo.",
+  "datos-invalidos": "Revisa los datos: falta elegir cliente, profesional, horario o algún servicio.",
 };
 
 export default async function NuevoTurnoPage({

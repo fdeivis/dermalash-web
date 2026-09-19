@@ -9,7 +9,7 @@ export default async function NuevoClientePage() {
     <div>
       <h1 className="font-display text-2xl">Nuevo cliente</h1>
       <p className="mt-1 text-sm text-brand-muted">
-        Antes de continuar, revisá el{" "}
+        Antes de continuar, revisa el{" "}
         <Link href="/admin/clientes" className="underline">
           buscador de clientes
         </Link>{" "}

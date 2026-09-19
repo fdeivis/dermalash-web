@@ -59,10 +59,10 @@ export default async function CajaPage({
     <div>
       <h1 className="font-display text-2xl">Caja</h1>
       <p className="mt-2 text-sm text-brand-muted">
-        Una sola caja, con una sola fecha de apertura. Efectivo es obligatorio; sumá Yape, Plin,
-        tarjeta o transferencia si también querés conciliarlas esta vez. Los ingresos y egresos
+        Una sola caja, con una sola fecha de apertura. Efectivo es obligatorio; suma Yape, Plin,
+        tarjeta o transferencia si también quieres conciliarlas esta vez. Los ingresos y egresos
         que se muestran son solo los que ocurrieron mientras esta caja está abierta — para ver el
-        total de un día completo (incluyendo lo anterior a la apertura), usá{" "}
+        total de un día completo (incluyendo lo anterior a la apertura), usa{" "}
         <Link href="/admin/balance" className="underline">
           Balance
         </Link>
