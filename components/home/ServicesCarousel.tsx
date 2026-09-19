@@ -62,7 +62,7 @@ export function ServicesCarousel({ services }: { services: CarouselService[] }) 
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
-                <p className="text-xs uppercase tracking-widest text-brand-accent md:text-sm">
+                <p className="text-xs uppercase tracking-widest text-white/90 drop-shadow-sm md:text-sm">
                   Tratamiento
                 </p>
                 <h3 className="mt-1 max-w-xl font-display text-xl text-white drop-shadow-sm md:text-3xl">

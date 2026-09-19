@@ -167,7 +167,7 @@ async function main() {
       slug: "bienvenida-dermalash",
       excerpt: "Abrimos nuestras puertas en Lima con tratamientos estéticos de calidad.",
       content:
-        "Estamos muy contentas de compartir con vos el lanzamiento de Dermalash. Conocé nuestros tratamientos y reservá tu cita por WhatsApp.",
+        "Estamos muy contentas de compartir contigo el lanzamiento de Dermalash. Conoce nuestros tratamientos y reserva tu cita por WhatsApp.",
       coverImage: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800",
       status: "PUBLISHED",
       publishedAt: now,

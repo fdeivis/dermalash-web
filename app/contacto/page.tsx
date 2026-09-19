@@ -25,7 +25,7 @@ export default function ContactoPage() {
 
       {branding.contact.email && (
         <p className="mt-6 text-sm text-brand-muted">
-          También podés escribirnos a {branding.contact.email}
+          También puedes escribirnos a {branding.contact.email}
         </p>
       )}
 
@@ -37,7 +37,7 @@ export default function ContactoPage() {
           className="mt-6 flex items-center justify-center gap-1.5 text-sm text-brand-muted hover:text-brand-accent"
         >
           <Instagram className="h-4 w-4" />
-          Seguinos en Instagram @{branding.social.instagram}
+          Síguenos en Instagram @{branding.social.instagram}
         </a>
       )}
     </div>

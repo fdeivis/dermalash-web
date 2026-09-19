@@ -19,7 +19,7 @@ export const branding = {
     email: null as string | null,
   },
   social: {
-    instagram: "dermalashpe" as string | null,
+    instagram: "dermalash.pe" as string | null,
     facebook: null as string | null,
   },
 };

@@ -20,11 +20,11 @@ export function Hero() {
             {branding.tagline}
           </p>
           <h1 className="max-w-2xl font-display text-4xl leading-tight md:text-5xl">
-            Belleza y bienestar en un espacio pensado para vos
+            Belleza y bienestar en un espacio pensado para ti
           </h1>
           <p className="max-w-xl text-brand-muted">
-            Tratamientos estéticos profesionales en un ambiente elegante y cercano. Conocé
-            nuestros servicios y reservá tu cita por WhatsApp.
+            Tratamientos estéticos profesionales en un ambiente elegante y cercano. Conoce
+            nuestros servicios y reserva tu cita por WhatsApp.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/tratamientos">

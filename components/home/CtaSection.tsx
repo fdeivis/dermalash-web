@@ -6,7 +6,7 @@ export function CtaSection() {
     <section className="mx-auto max-w-6xl px-4 py-16 text-center">
       <h2 className="font-display text-2xl md:text-3xl">¿Lista para tu próxima sesión?</h2>
       <p className="mx-auto mt-2 max-w-md text-brand-muted">
-        Escribinos por WhatsApp y coordinamos el mejor horario para vos.
+        Escríbenos por WhatsApp y coordinamos el mejor horario para ti.
       </p>
       <a
         href={whatsappLink("Hola, quisiera reservar una cita")}
