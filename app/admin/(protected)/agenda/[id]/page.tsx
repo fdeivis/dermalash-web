@@ -23,6 +23,8 @@ const ERROR_LABEL: Record<string, string> = {
     "Ese horario está fuera del horario habitual del profesional. Marca \"Forzar\" si igual quieres reprogramarlo ahí.",
   feriado:
     "Ese día el profesional tiene una ausencia o es feriado. Marca \"Forzar\" si igual quieres reprogramarlo ahí.",
+  "turno-atendido": "No se puede reprogramar un turno ya atendido.",
+  "turno-con-factura": "No se puede hacer eso: este turno ya tiene una factura registrada.",
 };
 
 function pad(n: number) {

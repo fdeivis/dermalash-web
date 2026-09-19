@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAgendaManager } from "@/lib/auth";
@@ -12,7 +13,18 @@ const scheduleSchema = z.object({
   dayOfWeek: z.coerce.number().int().min(0).max(6),
   startTime: z.string().min(1),
   endTime: z.string().min(1),
+  month: z.string().optional(),
 });
+
+// `throw new Error(...)` acá tiraba a la pantalla de error genérica de
+// Next.js en vez de mostrar un mensaje entendible en la propia página —
+// mismo patrón de redirect con `?error=` que ya usan el resto de los
+// formularios del panel (ver agenda/actions.ts, sesiones/actions.ts).
+function horariosUrl(error: string, month?: string) {
+  const params = new URLSearchParams({ error });
+  if (month) params.set("month", month);
+  return `/admin/agenda/horarios?${params}`;
+}
 
 export async function createSchedule(formData: FormData) {
   const session = await requireAgendaManager();
@@ -21,10 +33,11 @@ export async function createSchedule(formData: FormData) {
     dayOfWeek: formData.get("dayOfWeek"),
     startTime: formData.get("startTime"),
     endTime: formData.get("endTime"),
+    month: formData.get("month") || undefined,
   });
   const startMinute = timeToMinutes(data.startTime);
   const endMinute = timeToMinutes(data.endTime);
-  if (endMinute <= startMinute) throw new Error("El horario de fin debe ser posterior al de inicio");
+  if (endMinute <= startMinute) redirect(horariosUrl("horario-fin-invalido", data.month));
 
   await prisma.schedule.create({
     data: {
@@ -58,6 +71,7 @@ const timeOffSchema = z.object({
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   reason: z.string().max(500).optional(),
+  month: z.string().optional(),
 });
 
 export async function createTimeOff(formData: FormData) {
@@ -69,15 +83,16 @@ export async function createTimeOff(formData: FormData) {
     startTime: formData.get("startTime") || undefined,
     endTime: formData.get("endTime") || undefined,
     reason: formData.get("reason") || undefined,
+    month: formData.get("month") || undefined,
   });
-  if (data.endDate < data.startDate) throw new Error("La fecha de fin debe ser igual o posterior a la de inicio");
+  if (data.endDate < data.startDate) redirect(horariosUrl("ausencia-fecha-invalida", data.month));
   if (Boolean(data.startTime) !== Boolean(data.endTime)) {
-    throw new Error("Completa tanto la hora de inicio como la de fin, o deja ambas vacías");
+    redirect(horariosUrl("ausencia-horas-incompletas", data.month));
   }
   const startMinute = data.startTime ? timeToMinutes(data.startTime) : null;
   const endMinute = data.endTime ? timeToMinutes(data.endTime) : null;
   if (startMinute !== null && endMinute !== null && endMinute <= startMinute) {
-    throw new Error("La hora de fin debe ser posterior a la de inicio");
+    redirect(horariosUrl("ausencia-horario-invalido", data.month));
   }
 
   const adminUserId = data.adminUserId === "ALL" ? null : data.adminUserId;

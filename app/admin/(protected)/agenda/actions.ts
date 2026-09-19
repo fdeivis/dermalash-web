@@ -130,7 +130,7 @@ export async function rescheduleAppointment(id: string, formData: FormData) {
 
   if (!result.ok) {
     if (result.error === "turno-atendido") {
-      throw new Error("No se puede reprogramar un turno ya atendido");
+      redirect(`/admin/agenda/${id}?error=turno-atendido`);
     }
     const errorKey = ERROR_REDIRECT[result.error] ?? "datos-invalidos";
     redirect(`/admin/agenda/${id}?error=${errorKey}`);
@@ -160,7 +160,7 @@ export async function cancelAppointment(id: string, formData: FormData) {
 
   const result = await cancelAppointmentCore(id, { reason });
   if (!result.ok) {
-    throw new Error("No se puede cancelar un turno que ya tiene una factura registrada");
+    redirect(`/admin/agenda/${id}?error=turno-con-factura`);
   }
   const { appointment } = result;
 
@@ -181,7 +181,7 @@ export async function markNoShow(id: string) {
     where: { id },
     include: { session: true },
   });
-  if (existing.session) throw new Error("Este turno ya tiene una factura registrada");
+  if (existing.session) redirect(`/admin/agenda/${id}?error=turno-con-factura`);
 
   await prisma.appointment.update({ where: { id }, data: { status: "NO_ASISTIO" } });
   await logAction(session, "turno.no-asistio", "Appointment", id);

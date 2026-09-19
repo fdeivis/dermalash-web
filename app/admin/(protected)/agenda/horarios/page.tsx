@@ -17,6 +17,13 @@ import { MonthJumpForm } from "@/components/admin/MonthJumpForm";
 
 export const dynamic = "force-dynamic";
 
+const ERROR_LABEL: Record<string, string> = {
+  "horario-fin-invalido": "El horario de fin debe ser posterior al de inicio.",
+  "ausencia-fecha-invalida": "La fecha de fin debe ser igual o posterior a la de inicio.",
+  "ausencia-horas-incompletas": "Completa tanto la hora de inicio como la de fin, o deja ambas vacías.",
+  "ausencia-horario-invalido": "La hora de fin debe ser posterior a la de inicio.",
+};
+
 const DAYS = [
   "Domingo",
   "Lunes",
@@ -67,10 +74,10 @@ function monthLabel(monthKey: string) {
 export default async function HorariosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; error?: string }>;
 }) {
   await requirePagePermission("agenda.gestionar");
-  const { month: monthParam } = await searchParams;
+  const { month: monthParam, error } = await searchParams;
   const monthKey = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : toMonthKey(peruToday());
   const { start: monthStart, end: monthEnd } = monthRange(monthKey);
 
@@ -98,6 +105,12 @@ export default async function HorariosPage({
           Definen qué bloques horarios ofrece cada profesional en la Agenda.
         </p>
       </div>
+
+      {error && (
+        <p className="rounded-brand border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {ERROR_LABEL[error] ?? "No se pudo guardar. Revisa los datos e intenta de nuevo."}
+        </p>
+      )}
 
       {professionals.map((professional) => {
         const rows = schedules.filter((s) => s.adminUserId === professional.id);
@@ -132,6 +145,7 @@ export default async function HorariosPage({
               className="mt-4 flex flex-wrap items-end gap-3 border-t border-brand-border pt-4"
             >
               <input type="hidden" name="adminUserId" value={professional.id} />
+              <input type="hidden" name="month" value={monthKey} />
               <div>
                 <label className="block text-xs font-medium">Día</label>
                 <select
@@ -273,6 +287,7 @@ export default async function HorariosPage({
         </ul>
 
         <form action={createTimeOff} className="mt-4 flex flex-wrap items-end gap-3">
+          <input type="hidden" name="month" value={monthKey} />
           <div>
             <label className="block text-xs font-medium">Profesional</label>
             <select
