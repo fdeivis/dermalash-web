@@ -268,11 +268,11 @@ export default async function AdminDashboardPage() {
           <ChartCard
             title="Turnos"
             periods={[
-              { key: "dia", label: "Día" },
-              { key: "semana", label: "Semana" },
-              { key: "mes", label: "Mes" },
-              { key: "6meses", label: "6 meses" },
-              { key: "anio", label: "Año" },
+              { key: "dia", label: "Hoy" },
+              { key: "semana", label: "Esta semana" },
+              { key: "mes", label: "Este mes" },
+              { key: "6meses", label: "Este semestre" },
+              { key: "anio", label: "Este año" },
             ]}
             defaultPeriod="semana"
             dataByPeriod={Object.fromEntries(

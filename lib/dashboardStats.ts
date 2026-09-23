@@ -66,10 +66,58 @@ function bucketIndexFor(buckets: Bucket[], instant: Date): number {
   return buckets.findIndex((b) => instant >= b.start && instant <= b.end);
 }
 
+// Un mes calendario completo de Perú (`monthIndex` base 0). Date.UTC dentro de
+// fromPeruParts normaliza el desborde, así que diciembre + 1 cae bien en enero.
+function monthBucket(year: number, monthIndex: number): Bucket {
+  const start = fromPeruParts(year, monthIndex + 1, 1, 0, 0);
+  const end = new Date(fromPeruParts(year, monthIndex + 2, 1, 0, 0).getTime() - 1);
+  return { label: MONTHS_SHORT[monthIndex], start, end };
+}
+
+// Los turnos, a diferencia del dinero, existen también en el futuro (se
+// agendan con anticipación). Con las ventanas móviles "hacia atrás" de
+// buildBuckets, un turno para la semana que viene nunca aparecía en ningún
+// período — por eso acá cada período es el calendario EN CURSO (incluye los
+// días/meses que todavía no llegaron).
+function buildTurnosBuckets(period: Period): Bucket[] {
+  const today = peruToday();
+  switch (period) {
+    case "dia":
+      return dailyBuckets(1);
+    case "semana": {
+      // Semana lunes a domingo.
+      const daysSinceMonday = (today.getUTCDay() + 6) % 7;
+      const monday = addDaysUTC(today, -daysSinceMonday);
+      return Array.from({ length: 7 }, (_, i) => {
+        const day = addDaysUTC(monday, i);
+        const { start, end } = peruDayRange(day);
+        return { label: `${WEEKDAYS_SHORT[day.getUTCDay()]} ${day.getUTCDate()}`, start, end };
+      });
+    }
+    case "mes": {
+      const year = today.getUTCFullYear();
+      const month = today.getUTCMonth();
+      const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      return Array.from({ length: daysInMonth }, (_, i) => {
+        const day = new Date(Date.UTC(year, month, i + 1));
+        const { start, end } = peruDayRange(day);
+        return { label: `${day.getUTCDate()}/${month + 1}`, start, end };
+      });
+    }
+    case "6meses": {
+      // Semestre calendario: ene-jun o jul-dic.
+      const firstMonth = today.getUTCMonth() < 6 ? 0 : 6;
+      return Array.from({ length: 6 }, (_, i) => monthBucket(today.getUTCFullYear(), firstMonth + i));
+    }
+    case "anio":
+      return Array.from({ length: 12 }, (_, i) => monthBucket(today.getUTCFullYear(), i));
+  }
+}
+
 export type TurnosBucket = { label: string; reservado: number; confirmadoAtendido: number; cancelado: number };
 
 export async function getTurnosPorPeriodo(period: Period): Promise<TurnosBucket[]> {
-  const buckets = buildBuckets(period);
+  const buckets = buildTurnosBuckets(period);
   const range = { gte: buckets[0].start, lte: buckets[buckets.length - 1].end };
 
   const appointments = await prisma.appointment.findMany({
