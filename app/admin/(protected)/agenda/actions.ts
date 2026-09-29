@@ -206,8 +206,14 @@ export async function deleteAppointment(id: string) {
   const session = await requirePermission("agenda.eliminar");
   const existing = await prisma.appointment.findUniqueOrThrow({
     where: { id },
-    include: { client: true },
+    include: { client: true, session: true },
   });
+  // ClientSession.appointmentId no permite ON DELETE (RESTRICT): sin este
+  // chequeo, borrar un turno con factura ya registrada tiraba un error de
+  // base de datos sin capturar en vez de este mensaje.
+  if (existing.session) {
+    redirect(`/admin/agenda/${id}?error=turno-con-factura`);
+  }
   const dateKey = dateKeyOf(existing.startAt);
 
   await prisma.$transaction([

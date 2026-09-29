@@ -43,6 +43,12 @@ export default async function AdminEmpleadosPage({
           lugar si ya no trabaja acá.
         </p>
       )}
+      {error === "tiene-actividad" && (
+        <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          No se puede eliminar: este empleado tiene horarios, ausencias o turnos registrados.
+          Desactívalo en su lugar si ya no trabaja acá.
+        </p>
+      )}
 
       <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
         <table className="w-full text-left text-sm">

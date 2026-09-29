@@ -87,6 +87,13 @@ export async function deleteClient(id: string) {
 
   await prisma.$transaction([
     prisma.clientAttachment.deleteMany({ where: { clientId: id } }),
+    // A diferencia de facturas/turnos (se bloquea la eliminación), una
+    // conversación de WhatsApp se desvincula en vez de bloquear: es el canal
+    // principal de contacto de este negocio, así que casi todo cliente real
+    // termina teniendo una — bloquear la eliminación por eso volvería la
+    // función casi inútil. La conversación se conserva, solo queda "sin
+    // identificar" (mismo estado que ya soporta la pantalla del asistente).
+    prisma.conversation.updateMany({ where: { clientId: id }, data: { clientId: null } }),
     prisma.client.delete({ where: { id } }),
   ]);
   await logAction(session, "cliente.eliminar", "Client", id, `${client.firstName} ${client.lastName}`);

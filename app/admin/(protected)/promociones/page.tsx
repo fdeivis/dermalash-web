@@ -9,9 +9,14 @@ import { deletePromotion, movePromotion, setPromotionStatus } from "./actions";
 
 const dateFormatter = new Intl.DateTimeFormat("es-PE", { dateStyle: "short" });
 
-export default async function AdminPromocionesPage() {
+export default async function AdminPromocionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await requirePagePermission("promociones.ver");
   const canManage = await hasPermission(session.user.role, "promociones.gestionar");
+  const { error } = await searchParams;
   const promotions = await prisma.promotion.findMany({ orderBy: { order: "asc" } });
 
   return (
@@ -24,6 +29,13 @@ export default async function AdminPromocionesPage() {
           </Link>
         )}
       </div>
+
+      {error === "tiene-sesiones" && (
+        <p className="mt-4 rounded-brand border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          No se puede eliminar: esta promoción ya se usó en una factura o quedó registrada en un
+          turno. Despublícala en su lugar si no querés seguir ofreciéndola.
+        </p>
+      )}
 
       <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
         <table className="w-full text-left text-sm">

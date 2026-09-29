@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -173,11 +174,22 @@ export async function deleteEmployee(id: string) {
     redirect("/admin/empleados?error=tiene-sesiones");
   }
 
-  await prisma.$transaction([
-    prisma.employeeSalaryPeriod.deleteMany({ where: { employeeId: id } }),
-    prisma.employee.delete({ where: { id } }),
-    prisma.adminUser.delete({ where: { id: employee.adminUserId } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.employeeSalaryPeriod.deleteMany({ where: { employeeId: id } }),
+      prisma.employee.delete({ where: { id } }),
+      prisma.adminUser.delete({ where: { id: employee.adminUserId } }),
+    ]);
+  } catch (error) {
+    // El chequeo de arriba solo cubre facturas atendidas; el empleado
+    // también puede tener horarios, ausencias o turnos asignados (ON DELETE
+    // RESTRICT en esas tablas) — sin este catch, cualquiera de esos casos
+    // tiraba un error de base de datos sin capturar en vez de este mensaje.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      redirect("/admin/empleados?error=tiene-actividad");
+    }
+    throw error;
+  }
   await logAction(
     session,
     "empleado.eliminar",

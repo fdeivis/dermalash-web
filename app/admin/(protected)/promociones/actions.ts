@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -79,7 +80,18 @@ export async function updatePromotion(id: string, formData: FormData) {
 
 export async function deletePromotion(id: string) {
   const session = await requirePermission("promociones.gestionar");
-  const deleted = await prisma.promotion.delete({ where: { id } });
+  let deleted: Awaited<ReturnType<typeof prisma.promotion.delete>>;
+  try {
+    deleted = await prisma.promotion.delete({ where: { id } });
+  } catch (error) {
+    // La promo ya se usó en una factura o quedó registrada en un turno
+    // (ON DELETE RESTRICT): sin este catch, tiraba un error de base de
+    // datos sin capturar en vez de este mensaje.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      redirect("/admin/promociones?error=tiene-sesiones");
+    }
+    throw error;
+  }
   await logAction(session, "promocion.eliminar", "Promotion", id, deleted.name);
   await Promise.all(deleted.images.map((url) => deleteImage(url).catch(() => {})));
   revalidatePath("/admin/promociones");
