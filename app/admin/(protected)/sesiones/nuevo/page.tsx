@@ -22,7 +22,7 @@ function toDateTimeLocal(date: Date) {
 
 const ERROR_LABEL: Record<string, string> = {
   "datos-invalidos": "Revisa los datos: falta elegir cliente, profesional, fecha, medio de pago o algún servicio.",
-  "descuento-sin-motivo": "Si aplicás un descuento, indicá el motivo.",
+  "descuento-sin-motivo": "Si aplicas un descuento, indica el motivo.",
 };
 
 function formatVigencia(date: Date) {

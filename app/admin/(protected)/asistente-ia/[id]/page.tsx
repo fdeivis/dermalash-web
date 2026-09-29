@@ -67,7 +67,7 @@ export default async function ConversacionPage({ params }: { params: Promise<{ i
       )}
       {conversation.channel === "WHATSAPP" && (
         <p className="mt-4 max-w-xl text-sm text-brand-muted">
-          Esta es una conversación real de WhatsApp — es de solo lectura acá. Para responder, escribile
+          Esta es una conversación real de WhatsApp — es de solo lectura acá. Para responder, escríbele
           directo desde WhatsApp al cliente.
         </p>
       )}
