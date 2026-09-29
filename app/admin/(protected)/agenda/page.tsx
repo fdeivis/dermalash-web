@@ -202,58 +202,79 @@ export default async function AgendaPage({
                       return p.hour * 60 + p.minute === rowMinute;
                     };
 
-                    const appointment = d.appointments.find((a) => startsAt(a) && isBlocking(a));
+                    // La sobre-reserva es intencional (ver lib/appointments/service.ts):
+                    // pueden caer varios turnos en el mismo horario/profesional, así
+                    // que acá se apilan TODOS los que arrancan en esta celda, no solo
+                    // el primero.
+                    const appointmentsHere = d.appointments.filter((a) => startsAt(a) && isBlocking(a));
                     const inactiveHere = d.appointments.filter((a) => startsAt(a) && !isBlocking(a));
 
-                    if (appointment) {
-                      const durationMinutes =
-                        (appointment.endAt.getTime() - appointment.startAt.getTime()) / 60_000;
-                      const rowSpan = Math.max(1, Math.ceil(durationMinutes / STEP_MINUTES));
+                    if (appointmentsHere.length > 0) {
+                      // La celda es una sola (un <td rowSpan>): su alto lo define el
+                      // turno más largo apilado ahí, para que ninguno quede cortado.
+                      const maxDurationMinutes = Math.max(
+                        ...appointmentsHere.map((a) => (a.endAt.getTime() - a.startAt.getTime()) / 60_000)
+                      );
+                      const rowSpan = Math.max(1, Math.ceil(maxDurationMinutes / STEP_MINUTES));
                       skipUntil.set(d.professional.id, rowMinute + rowSpan * STEP_MINUTES);
 
                       return (
                         <td
                           key={d.professional.id}
                           rowSpan={rowSpan}
-                          className="border-l border-brand-border px-3 py-2 align-top"
+                          className={`border-l border-brand-border px-3 py-2 align-top ${
+                            appointmentsHere.length > 1 ? "bg-amber-50" : ""
+                          }`}
                         >
-                          <div className="rounded-brand border border-brand-border bg-brand-bg p-2">
-                            <p className="font-medium">
-                              {appointment.client.firstName} {appointment.client.lastName}
-                            </p>
-                            <p className="text-xs text-brand-muted">
-                              {appointment.services.map((l) => l.service.name).join(", ")}
-                            </p>
-                            <p className="mt-1 text-xs">
-                              <span className="rounded bg-brand-surface px-1.5 py-0.5">
-                                {STATUS_LABEL[appointment.status]}
-                              </span>
-                              {appointment.source === "WHATSAPP" && (
-                                <span className="ml-1 rounded bg-brand-surface px-1.5 py-0.5">
-                                  WhatsApp
-                                </span>
-                              )}
-                            </p>
-                            {canManage ? (
-                              <Link
-                                href={`/admin/agenda/${appointment.id}`}
-                                className="mt-2 inline-block text-xs underline hover:text-brand-ink"
-                              >
-                                Gestionar →
-                              </Link>
-                            ) : (
-                              // La Esteticista no gestiona el turno (reprogramar/cancelar/borrar),
-                              // pero sí puede registrar su propia factura (cualquiera con
-                              // sesiones.crear puede facturar cualquier turno o cliente).
-                              (appointment.status === "RESERVADO" || appointment.status === "CONFIRMADO") && (
-                                <Link
-                                  href={`/admin/sesiones/nuevo?appointmentId=${appointment.id}`}
-                                  className="mt-2 inline-block text-xs underline hover:text-brand-ink"
-                                >
-                                  Registrar factura →
-                                </Link>
-                              )
+                          <div className="space-y-2">
+                            {appointmentsHere.length > 1 && (
+                              <p className="text-xs font-medium text-amber-700">
+                                {appointmentsHere.length} turnos en este horario
+                              </p>
                             )}
+                            {appointmentsHere.map((appointment) => (
+                              <div
+                                key={appointment.id}
+                                className="rounded-brand border border-brand-border bg-brand-bg p-2"
+                              >
+                                <p className="font-medium">
+                                  {appointment.client.firstName} {appointment.client.lastName}
+                                </p>
+                                <p className="text-xs text-brand-muted">
+                                  {appointment.services.map((l) => l.service.name).join(", ")}
+                                </p>
+                                <p className="mt-1 text-xs">
+                                  <span className="rounded bg-brand-surface px-1.5 py-0.5">
+                                    {STATUS_LABEL[appointment.status]}
+                                  </span>
+                                  {appointment.source === "WHATSAPP" && (
+                                    <span className="ml-1 rounded bg-brand-surface px-1.5 py-0.5">
+                                      WhatsApp
+                                    </span>
+                                  )}
+                                </p>
+                                {canManage ? (
+                                  <Link
+                                    href={`/admin/agenda/${appointment.id}`}
+                                    className="mt-2 inline-block text-xs underline hover:text-brand-ink"
+                                  >
+                                    Gestionar →
+                                  </Link>
+                                ) : (
+                                  // La Esteticista no gestiona el turno (reprogramar/cancelar/borrar),
+                                  // pero sí puede registrar su propia factura (cualquiera con
+                                  // sesiones.crear puede facturar cualquier turno o cliente).
+                                  (appointment.status === "RESERVADO" || appointment.status === "CONFIRMADO") && (
+                                    <Link
+                                      href={`/admin/sesiones/nuevo?appointmentId=${appointment.id}`}
+                                      className="mt-2 inline-block text-xs underline hover:text-brand-ink"
+                                    >
+                                      Registrar factura →
+                                    </Link>
+                                  )
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </td>
                       );
