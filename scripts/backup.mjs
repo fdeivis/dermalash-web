@@ -1,13 +1,11 @@
 // Respaldo automático: vuelca la base de datos (pg_dump) y descarga los
 // archivos de Supabase Storage (buckets "media" y "private"), y sube ambos
-// a una carpeta de Google Drive previamente compartida con la cuenta de
-// servicio. Pensado para correr desde GitHub Actions (ver
-// .github/workflows/backup.yml), pero también corre en cualquier máquina
-// con Node 20+, pg_dump y tar instalados, con las mismas variables de
-// entorno exportadas.
+// a una carpeta de Google Drive. Pensado para correr desde GitHub Actions
+// (ver .github/workflows/backup.yml), pero también corre en cualquier
+// máquina con Node 20+, pg_dump y tar instalados, con las mismas
+// variables de entorno exportadas.
 import { createClient } from "@supabase/supabase-js";
 import { execFileSync } from "node:child_process";
-import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -16,49 +14,27 @@ const REQUIRED_ENV = [
   "BACKUP_DATABASE_URL",
   "NEXT_PUBLIC_SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
-  "GOOGLE_SERVICE_ACCOUNT_KEY",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
+  "GOOGLE_OAUTH_REFRESH_TOKEN",
   "GOOGLE_DRIVE_FOLDER_ID",
 ];
 
-function base64url(input) {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-// Flujo de cuenta de servicio de Google (JWT Bearer): nos autenticamos
-// firmando nosotros mismos un JWT con la clave privada de la cuenta de
-// servicio, sin pantalla de consentimiento ni refresh token que guardar.
-function createServiceAccountJwt(serviceAccount, scope) {
-  const header = { alg: "RS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const claim = {
-    iss: serviceAccount.client_email,
-    scope,
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now,
-  };
-  const unsigned = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claim))}`;
-  const signature = crypto.createSign("RSA-SHA256").update(unsigned).sign(serviceAccount.private_key);
-  const signatureB64 = signature
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-  return `${unsigned}.${signatureB64}`;
-}
-
-async function getGoogleAccessToken(serviceAccount) {
-  const jwt = createServiceAccountJwt(serviceAccount, "https://www.googleapis.com/auth/drive");
+// Las cuentas de servicio de Google no tienen cuota de almacenamiento en un
+// Drive personal (solo en Drive compartido de Workspace), así que en vez de
+// una cuenta de servicio nos autenticamos como la cuenta real de Drive
+// usando un refresh token (obtenido una sola vez, no vence salvo que se
+// revoque) — así el espacio ocupado se descuenta de esa cuenta, que sí tiene
+// cuota.
+async function getGoogleAccessToken() {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt,
+      grant_type: "refresh_token",
+      refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+      client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
     }),
   });
   const json = await res.json();
@@ -169,8 +145,7 @@ async function main() {
   execFileSync("tar", ["-czf", storageArchivePath, "-C", storageDir, "."], { stdio: "inherit" });
 
   console.log("Autenticando con Google Drive...");
-  const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-  const accessToken = await getGoogleAccessToken(serviceAccount);
+  const accessToken = await getGoogleAccessToken();
 
   console.log("Subiendo respaldos a Google Drive...");
   await uploadToDrive(accessToken, dumpPath, process.env.GOOGLE_DRIVE_FOLDER_ID);
