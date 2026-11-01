@@ -61,11 +61,16 @@ export default async function BalancePage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-display text-2xl">Balance de ingresos y egresos</h1>
-        <Link href="/admin/gastos" className="text-sm text-brand-muted underline">
-          ← Volver a Gastos
-        </Link>
+        <div className="flex items-center gap-4 text-sm">
+          <Link href="/admin/balance/detallado" className="text-brand-muted underline">
+            Ver balance detallado (beta) →
+          </Link>
+          <Link href="/admin/gastos" className="text-brand-muted underline">
+            ← Volver a Gastos
+          </Link>
+        </div>
       </div>
       <p className="mt-2 text-sm text-brand-muted">
         Visible solo para Socio. Suma todos los medios de pago, desglosado — te dice cuánto
