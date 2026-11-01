@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
-import { professionalLabel, formatDateTime12 } from "@/lib/scheduling";
+import { professionalLabel, formatDateTime12, parseDateKey, peruDayRange } from "@/lib/scheduling";
 import { requirePagePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
@@ -17,14 +17,33 @@ const PAYMENT_LABEL: Record<string, string> = {
   OTRO: "Otro",
 };
 
-export default async function AdminSesionesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AdminSesionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ desde?: string; hasta?: string }>;
+}) {
   const viewer = await requirePagePermission("sesiones.ver");
   const canDelete = await hasPermission(viewer.user.role, "sesiones.eliminar");
+  const { desde, hasta } = await searchParams;
+
+  const where: Record<string, unknown> = {};
+  if (desde || hasta) {
+    const sessionDate: { gte?: Date; lte?: Date } = {};
+    if (desde) sessionDate.gte = peruDayRange(parseDateKey(desde)).start;
+    if (hasta) sessionDate.lte = peruDayRange(parseDateKey(hasta)).end;
+    where.sessionDate = sessionDate;
+  }
+
   const sessions = await prisma.clientSession.findMany({
+    where,
     orderBy: { sessionDate: "desc" },
     include: { client: true, attendedBy: true, services: { include: { service: true } } },
-    take: 50,
+    take: 200,
   });
+
+  const exportQs = `${desde ? `desde=${desde}&` : ""}${hasta ? `hasta=${hasta}` : ""}`;
 
   return (
     <div>
@@ -35,7 +54,44 @@ export default async function AdminSesionesPage() {
         </Link>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
+      <form method="get" className="mt-4 flex flex-wrap items-end gap-3 text-sm">
+        <div>
+          <label className="block font-medium">Desde</label>
+          <input
+            type="date"
+            name="desde"
+            defaultValue={desde ?? ""}
+            className="mt-1 rounded-brand border border-brand-border px-3 py-2"
+          />
+        </div>
+        <div>
+          <label className="block font-medium">Hasta</label>
+          <input
+            type="date"
+            name="hasta"
+            defaultValue={hasta ?? ""}
+            className="mt-1 rounded-brand border border-brand-border px-3 py-2"
+          />
+        </div>
+        <button
+          type="submit"
+          className="rounded-brand border border-brand-border bg-brand-bg px-4 py-2 font-medium hover:bg-brand-surface"
+        >
+          Filtrar
+        </button>
+        {(desde || hasta) && (
+          <Link href="/admin/sesiones" className="text-brand-muted underline">
+            Limpiar filtros
+          </Link>
+        )}
+        <a href={`/admin/sesiones/export?${exportQs}`} className="ml-auto">
+          <Button type="button" variant="outline" size="sm">
+            Descargar Excel
+          </Button>
+        </a>
+      </form>
+
+      <div className="mt-4 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-brand-border text-brand-muted">
             <tr>

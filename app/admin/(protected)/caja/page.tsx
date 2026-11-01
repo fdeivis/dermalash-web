@@ -156,7 +156,14 @@ export default async function CajaPage({
         <p className="mt-6 text-sm text-brand-muted">La caja está cerrada.</p>
       )}
 
-      <h2 className="mt-8 font-display text-lg">Historial</h2>
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="font-display text-lg">Historial</h2>
+        <a href="/admin/caja/export">
+          <Button variant="outline" size="sm">
+            Descargar Excel
+          </Button>
+        </a>
+      </div>
       <div className="mt-3 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-brand-border text-brand-muted">

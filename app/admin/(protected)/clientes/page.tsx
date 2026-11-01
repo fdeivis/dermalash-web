@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePagePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
+import { formatDateTime12 } from "@/lib/scheduling";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/admin/ConfirmSubmitButton";
 import { deleteClient } from "./actions";
@@ -37,7 +38,13 @@ export default async function AdminClientesPage({
       : undefined,
     orderBy: { createdAt: "desc" },
     take: 50,
+    include: {
+      sessions: { orderBy: { sessionDate: "desc" }, take: 1, select: { sessionDate: true } },
+      _count: { select: { sessions: true } },
+    },
   });
+
+  const exportQs = q ? `?q=${encodeURIComponent(q)}` : "";
 
   return (
     <div>
@@ -78,7 +85,15 @@ export default async function AdminClientesPage({
         Busca antes de crear un cliente nuevo para evitar duplicados.
       </p>
 
-      <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
+      <div className="mt-4">
+        <a href={`/admin/clientes/export${exportQs}`}>
+          <Button variant="outline" size="sm">
+            Descargar Excel
+          </Button>
+        </a>
+      </div>
+
+      <div className="mt-4 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-brand-border text-brand-muted">
             <tr>
@@ -86,6 +101,8 @@ export default async function AdminClientesPage({
               <th className="px-4 py-3">Teléfono</th>
               <th className="px-4 py-3">Documento</th>
               <th className="px-4 py-3">Origen</th>
+              <th className="px-4 py-3">Visitas</th>
+              <th className="px-4 py-3">Última visita</th>
               <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
@@ -98,6 +115,10 @@ export default async function AdminClientesPage({
                 <td className="px-4 py-3">{client.phone ?? "—"}</td>
                 <td className="px-4 py-3">{client.documentId ?? "—"}</td>
                 <td className="px-4 py-3">{SOURCE_LABEL[client.source ?? ""] ?? "—"}</td>
+                <td className="px-4 py-3">{client._count.sessions}</td>
+                <td className="px-4 py-3">
+                  {client.sessions[0] ? formatDateTime12(client.sessions[0].sessionDate) : "—"}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/admin/clientes/${client.id}`}>
@@ -123,7 +144,7 @@ export default async function AdminClientesPage({
             ))}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-brand-muted">
+                <td colSpan={7} className="px-4 py-8 text-center text-brand-muted">
                   {q
                     ? "No se encontraron clientes con esa búsqueda."
                     : "Todavía no hay clientes cargados."}

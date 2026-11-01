@@ -58,6 +58,12 @@ export default async function GastosPage({
     prisma.supplier.findMany({ orderBy: { name: "asc" } }),
   ]);
 
+  const exportParams = new URLSearchParams();
+  if (category) exportParams.set("category", category);
+  if (supplierId) exportParams.set("supplierId", supplierId);
+  if (desde) exportParams.set("desde", desde);
+  if (hasta) exportParams.set("hasta", hasta);
+
   const byCategory = new Map<string, number>();
   const bySupplier = new Map<string, number>();
   let total = 0;
@@ -146,6 +152,11 @@ export default async function GastosPage({
             Limpiar filtros
           </Link>
         )}
+        <a href={`/admin/gastos/export?${exportParams.toString()}`} className="ml-auto">
+          <Button type="button" variant="outline" size="sm">
+            Descargar Excel
+          </Button>
+        </a>
       </form>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">

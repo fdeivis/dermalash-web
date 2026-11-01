@@ -50,11 +50,16 @@ export default async function AdminServiciosPage({
     <div>
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl">Servicios</h1>
-        {canManage && (
-          <Link href="/admin/servicios/nuevo">
-            <Button>Nuevo servicio</Button>
+        <div className="flex gap-2">
+          <Link href="/admin/servicios/mas-vendidos">
+            <Button variant="outline">Más vendidos</Button>
           </Link>
-        )}
+          {canManage && (
+            <Link href="/admin/servicios/nuevo">
+              <Button>Nuevo servicio</Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {error === "tiene-sesiones" && (

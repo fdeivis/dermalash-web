@@ -17,6 +17,8 @@ export {
   fromPeruParts,
   peruParts,
   peruDayRange,
+  parseMonthKey,
+  peruMonthRange,
 } from "@/lib/time";
 
 /** Profesionales que pueden tener turnos: cualquier AdminUser activo marcado

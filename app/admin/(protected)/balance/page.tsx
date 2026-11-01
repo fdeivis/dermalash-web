@@ -57,6 +57,8 @@ export default async function BalancePage({
   const totalIncome = rows.reduce((sum, r) => sum + r.income, 0);
   const totalExpense = rows.reduce((sum, r) => sum + r.expense, 0);
 
+  const exportQs = `desde=${from.toISOString().slice(0, 10)}&hasta=${to.toISOString().slice(0, 10)}`;
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -96,6 +98,14 @@ export default async function BalancePage({
           Filtrar
         </button>
         <p className="text-xs text-brand-muted">Por defecto, últimos 30 días.</p>
+        <a href={`/admin/balance/export?${exportQs}`} className="ml-auto">
+          <button
+            type="button"
+            className="rounded-brand border border-brand-border px-4 py-2 font-medium hover:bg-brand-surface"
+          >
+            Descargar Excel
+          </button>
+        </a>
       </form>
 
       <div className="mt-6 overflow-x-auto rounded-brand border border-brand-border bg-brand-surface">

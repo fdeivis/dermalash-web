@@ -121,6 +121,20 @@ export function peruDayRange(day: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
+/** Parsea "YYYY-MM" (valor de un <input type="month">). */
+export function parseMonthKey(s: string): { year: number; month: number } {
+  const [year, month] = s.split("-").map(Number);
+  return { year, month };
+}
+
+/** Rango [inicio, fin] de un mes calendario de Perú, expresado en instantes
+ * reales (UTC) — mismo criterio que `peruDayRange` pero para el mes entero. */
+export function peruMonthRange(year: number, month: number): { start: Date; end: Date } {
+  const start = fromPeruParts(year, month, 1, 0, 0);
+  const end = new Date(fromPeruParts(year, month + 1, 1, 0, 0).getTime() - 1);
+  return { start, end };
+}
+
 // Fecha + hora para mostrar en tablas (ej. "13/09/26, 9:00 a. m."), en hora
 // de Perú, calculada a mano (ver nota de minutesToTime12 sobre no confiar en
 // Intl para esto en este runtime).
